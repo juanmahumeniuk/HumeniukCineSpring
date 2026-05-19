@@ -21,8 +21,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-data-rest'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-	// Source: https://mvnrepository.com/artifact/org.hibernate.orm/hibernate-envers
-	implementation 'org.hibernate.orm:hibernate-envers:7.3.4.Final'
+	// Debe coincidir con hibernate-core de Spring Boot (7.2.x); 7.3.x provoca NoSuchMethodError al guardar @Audited
+	implementation 'org.hibernate.orm:hibernate-envers:7.2.12.Final'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
 	runtimeOnly 'com.mysql:mysql-connector-j'

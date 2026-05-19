@@ -10,6 +10,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 
 
 @CrossOrigin(origins = "*")
@@ -54,7 +56,7 @@ public abstract class BaseControllerImpl<E extends Base, ID extends Serializable
         try {
             return ResponseEntity.status(HttpStatus.OK).body(servicio.save(entity));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("{\"error\":\"Error, por favor intente más tarde.\"}");
+            return errorResponse(HttpStatus.BAD_REQUEST, e);
         }
     }
 
@@ -63,7 +65,7 @@ public abstract class BaseControllerImpl<E extends Base, ID extends Serializable
         try {
             return ResponseEntity.status(HttpStatus.OK).body(servicio.update(id, entity));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("{\"error\":\"Error, por favor intente más tarde.\"}");
+            return errorResponse(HttpStatus.BAD_REQUEST, e);
         }
     }
 
@@ -72,8 +74,13 @@ public abstract class BaseControllerImpl<E extends Base, ID extends Serializable
         try {
             return ResponseEntity.status(HttpStatus.NO_CONTENT).body(servicio.delete(id));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("{\"error\":\"Error, por favor intente más tarde.\"}");
+            return errorResponse(HttpStatus.BAD_REQUEST, e);
         }
+    }
+
+    private static ResponseEntity<Map<String, String>> errorResponse(HttpStatus status, Exception e) {
+        String message = e.getMessage() != null ? e.getMessage() : "Error, por favor intente más tarde.";
+        return ResponseEntity.status(status).body(Map.of("error", message));
     }
 }
 
