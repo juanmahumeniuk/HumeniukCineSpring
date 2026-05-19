@@ -1,5 +1,6 @@
 package com.example.HumeniukCineSpring.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,5 +20,6 @@ public class Entrada extends Base {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "funcion_id")
+    @JsonIgnore
     private Funcion funcion;
 }

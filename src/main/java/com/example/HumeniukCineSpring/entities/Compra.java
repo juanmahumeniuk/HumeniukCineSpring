@@ -1,5 +1,6 @@
 package com.example.HumeniukCineSpring.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -22,6 +23,7 @@ public class Compra extends Base {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cine_id")
+    @JsonIgnore
     private Cine cine;
 
     @ManyToMany(cascade = { CascadeType.PERSIST, CascadeType.MERGE })

@@ -1,5 +1,6 @@
 package com.example.HumeniukCineSpring.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -28,6 +29,7 @@ public class Cine extends Base {
     private List<Pelicula> peliculas = new ArrayList<>();
 
     @OneToMany(mappedBy = "cine", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<Venta> ventas = new ArrayList<>();
 
     @OneToMany(mappedBy = "cine", cascade = CascadeType.ALL, orphanRemoval = true)

@@ -1,5 +1,6 @@
 package com.example.HumeniukCineSpring.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -31,6 +32,7 @@ public class Funcion extends Base {
     private List<Entrada> entradas = new ArrayList<>();
 
     @ManyToMany(mappedBy = "funciones")
+    @JsonIgnore
     private List<Venta> ventas = new ArrayList<>();
 
     public void addEntradas(Entrada entrada) {

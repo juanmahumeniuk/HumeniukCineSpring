@@ -1,5 +1,6 @@
 package com.example.HumeniukCineSpring.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -23,9 +24,11 @@ public class Sala extends Base {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cine_id")
+    @JsonIgnore
     private Cine cine;
 
     @OneToMany(mappedBy = "sala", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<Funcion> funciones = new ArrayList<>();
 
     public void addFunciones(Funcion funcion) {

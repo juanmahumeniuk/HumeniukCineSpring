@@ -1,5 +1,6 @@
 package com.example.HumeniukCineSpring.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -25,6 +26,7 @@ public class Empleado extends Base {
             name = "empleado_cine",
             joinColumns = @JoinColumn(name = "empleado_id"),
             inverseJoinColumns = @JoinColumn(name = "cine_id"))
+    @JsonIgnore
     private List<Cine> cines = new ArrayList<>();
 
     public void addCine(Cine cine) {
