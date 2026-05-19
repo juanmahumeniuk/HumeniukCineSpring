@@ -1,10 +1,15 @@
 package com.example.HumeniukCineSpring.entities;
 
-import jakarta.persistence.*;
+import org.hibernate.envers.Audited;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.envers.Audited;
 
 @Entity
 @Table(name = "pelicula")
@@ -22,7 +27,7 @@ public class Pelicula extends Base implements IPromocion {
     @Column(columnDefinition = "TEXT")
     private String descripcion;
 
-    /** Puntaje de referencia (escala 0–10). */
+    
     private Double puntaje;
 
     private Integer anio;
@@ -31,7 +36,7 @@ public class Pelicula extends Base implements IPromocion {
 
     private String director;
 
-    /** Clasificación por edades (ej. ATP, +13, +16). */
+    
     private String clasificacion;
 
     @Override
