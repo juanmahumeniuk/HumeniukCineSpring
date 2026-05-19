@@ -16,6 +16,12 @@
 ![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
 
+<p align="center">
+  <img src="docs/images/panel-peliculas.png" alt="Panel de administración — cartelera de películas (The Dark Knight)" width="900" />
+  <br />
+  <em>Panel de administración — cartelera y catálogo de películas</em>
+</p>
+
 </div>
 
 ---
