@@ -34,7 +34,8 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route element={<AppLayout />}>
-              <Route index element={<DashboardPage />} />
+              <Route index element={<PeliculasPage />} />
+              <Route path="dashboard" element={<DashboardPage />} />
               <Route path="cines" element={<CinesPage />} />
               <Route path="peliculas" element={<PeliculasPage />} />
               <Route path="peliculas/:id" element={<PeliculaDetailPage />} />

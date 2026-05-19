@@ -35,8 +35,8 @@ type NavSection = {
 const navSections: NavSection[] = [
   {
     items: [
-      { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-      { to: '/peliculas', label: 'Películas', icon: Film },
+      { to: '/', label: 'Películas', icon: Film },
+      { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { to: '/funciones', label: 'Funciones', icon: Calendar },
       { to: '/cines', label: 'Cines', icon: Building2 },
       { to: '/salas', label: 'Salas', icon: Clapperboard },

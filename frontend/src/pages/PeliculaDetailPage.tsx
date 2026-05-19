@@ -102,7 +102,7 @@ export function PeliculaDetailPage() {
     return (
       <div className="text-center">
         <EmptyState message="ID de película inválido." />
-        <Link to="/peliculas" className="mt-4 inline-block text-sm text-white/70 hover:text-white">
+        <Link to="/" className="mt-4 inline-block text-sm text-white/70 hover:text-white">
           Volver al catálogo
         </Link>
       </div>
@@ -117,7 +117,7 @@ export function PeliculaDetailPage() {
     return (
       <div className="text-center">
         <EmptyState message="No se encontró la película." />
-        <Link to="/peliculas" className="mt-4 inline-block text-sm text-white/70 hover:text-white">
+        <Link to="/" className="mt-4 inline-block text-sm text-white/70 hover:text-white">
           Volver al catálogo
         </Link>
       </div>
@@ -131,7 +131,7 @@ export function PeliculaDetailPage() {
 
       <div className="relative min-h-[100dvh] pb-12 pt-2">
           <Link
-            to="/peliculas"
+            to="/"
             className="liquid-btn glass-strong mb-6 inline-flex items-center gap-2 rounded-full px-4 py-2 text-[13px] font-medium text-white/85 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -260,7 +260,7 @@ export function PeliculaDetailPage() {
           peliculaId={peliculaId}
           onEditRequest={() => setModalOpen(true)}
           onRefreshed={() => refetch()}
-          onDeleted={() => navigate('/peliculas')}
+          onDeleted={() => navigate('/')}
         />
         </div>
       </div>
