@@ -19,6 +19,21 @@ public class Pelicula extends Base implements IPromocion {
     @Enumerated(EnumType.STRING)
     private Genero genero;
 
+    @Column(columnDefinition = "TEXT")
+    private String descripcion;
+
+    /** Puntaje de referencia (escala 0–10). */
+    private Double puntaje;
+
+    private Integer anio;
+
+    private Integer duracionMinutos;
+
+    private String director;
+
+    /** Clasificación por edades (ej. ATP, +13, +16). */
+    private String clasificacion;
+
     @Override
     public float obtenerDescuento() {
         return 15;

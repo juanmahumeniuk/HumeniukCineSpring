@@ -1,0 +1,88 @@
+{
+  "movies": {
+    "Star Wars: Episodio IV - Una nueva esperanza": "/6FfCtAuVAW8XJjZ7eWeLibRLWTw.jpg",
+    "Star Wars: Episodio V - El Imperio contraataca": "/nNAeTmF4CtdSgMDplXTDPOpYzsX.jpg",
+    "Star Wars: Episodio VI - El retorno del Jedi": "/jQYlydvHm3kUix1f8prMucrplhm.jpg",
+    "Star Wars: Episodio I - La amenaza fantasma": "/6wkfovpn7Eq8dYNKaG5PY3q2oq6.jpg",
+    "Star Wars: Episodio VII - El despertar de la Fuerza": "/wqnLdwVXoBjKibFRR5U3y0aDUhs.jpg",
+    "Rogue One: Una historia de Star Wars": "/i0yw1mFbB7sNGHCs7EXZPzFkdA1.jpg",
+    "Batman": "/cij4dd21v2Rk2YtUQbV5kW69WB2.jpg",
+    "Batman Begins": "/sPX89Td70IDDjVr85jdSBb4rWGr.jpg",
+    "The Dark Knight": "/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
+    "The Dark Knight Rises": "/hr0L2aueqlP2BYUblTTjmtn0hw4.jpg",
+    "The Batman": "/74xTEgt7R36Fpooo50r9T25onhq.jpg",
+    "Iron Man": "/78lPtwv72eTNqFW9COBYI0dWDJa.jpg",
+    "The Avengers": "/RYMX2wcKCBAr24UyPD7xwmjaTn.jpg",
+    "Spider-Man: No Way Home": "/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg",
+    "Black Panther": "/uxzzxijgPIY7slzFvMotPv8wjKA.jpg",
+    "Guardians of the Galaxy": "/r7vmZjiyZw9rpJMQJdXpjgiCOk9.jpg",
+    "Harry Potter y la piedra filosofal": "/wuMc08IPKEatf9rnMNXvIDxqP4W.jpg",
+    "El señor de los anillos: La comunidad del anillo": "/6oom5QYQ2yQTMJIbnvbkBL9cHo6.jpg",
+    "Jurassic Park": "/maFjKnJ62hDQ9E66dKqDZgbUy0H.jpg",
+    "Indiana Jones y los cazadores del arca perdida": "/ceG9VzoRAVGwivFU403Wc3AHRys.jpg",
+    "Casino Royale": "/lMrxYKKhd4lqRzwUHAy5gcx9PSO.jpg",
+    "Fast & Furious": "/gqY0ITBgT7A82poL9jv851qdnIb.jpg",
+    "Mission: Impossible - Dead Reckoning": "/NNxYkU70HPurnNCSiCjYAmacwm.jpg",
+    "Toy Story": "/uXDfjJbdP4ijW5hWSBrPrlKpxab.jpg",
+    "Shrek": "/iB64vpL3dIObOtMZgX3RqdVdQDc.jpg",
+    "El padrino": "/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
+    "Forrest Gump": "/Cw4hIUIAmSYfK9QfaUW5igp9La.jpg",
+    "Titanic": "/9xjZS2rlVxm8SFx8kPC3aIGCOYQ.jpg",
+    "El silencio de los corderos": "/uS9m8OBk1A8eM9I042bx8XXpqAq.jpg",
+    "Inception": "/xlaY2zyzMfkhk0HSC5VUwzoZPU1.jpg"
+  },
+  "remoteFallbacks": [
+    {
+      "file": "accion-portrait.jpg",
+      "url": "https://images.unsplash.com/photo-1626814026160-2237a95fc5a0?w=600&h=900&fit=crop&q=85"
+    },
+    {
+      "file": "comedia-portrait.jpg",
+      "url": "https://images.unsplash.com/photo-1574267432553-4b4628081c31?w=600&h=900&fit=crop&q=85"
+    },
+    {
+      "file": "drama-portrait.jpg",
+      "url": "https://images.unsplash.com/photo-1485846234645-a62644f84728?w=600&h=900&fit=crop&q=85"
+    },
+    {
+      "file": "suspenso-portrait.jpg",
+      "url": "https://images.unsplash.com/photo-1542204165-65bf26472b9b?w=600&h=900&fit=crop&q=85"
+    },
+    {
+      "file": "accion-backdrop.jpg",
+      "url": "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1920&h=1080&fit=crop&q=80"
+    },
+    {
+      "file": "comedia-backdrop.jpg",
+      "url": "https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1920&h=1080&fit=crop&q=80"
+    },
+    {
+      "file": "drama-backdrop.jpg",
+      "url": "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=1920&h=1080&fit=crop&q=80"
+    },
+    {
+      "file": "suspenso-backdrop.jpg",
+      "url": "https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=1920&h=1080&fit=crop&q=80"
+    },
+    {
+      "file": "accion-genre-poster.jpg",
+      "url": "https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400&h=240&fit=crop"
+    },
+    {
+      "file": "comedia-genre-poster.jpg",
+      "url": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400&h=240&fit=crop"
+    },
+    {
+      "file": "drama-genre-poster.jpg",
+      "url": "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=400&h=240&fit=crop"
+    },
+    {
+      "file": "suspenso-genre-poster.jpg",
+      "url": "https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=400&h=240&fit=crop"
+    },
+    {
+      "file": "cine-placeholder.jpg",
+      "url": "https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=400&h=200&fit=crop"
+    }
+  ]
+}
