@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.envers.Audited;
 
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ public class Cine extends Base {
             name = "cine_pelicula",
             joinColumns = @JoinColumn(name = "cine_id"),
             inverseJoinColumns = @JoinColumn(name = "pelicula_id"))
+    @BatchSize(size = 25)
     private List<Pelicula> peliculas = new ArrayList<>();
 
     @OneToMany(mappedBy = "cine", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -33,12 +35,15 @@ public class Cine extends Base {
     private List<Venta> ventas = new ArrayList<>();
 
     @OneToMany(mappedBy = "cine", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 25)
     private List<Sala> salas = new ArrayList<>();
 
     @OneToMany(mappedBy = "cine", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 25)
     private List<Compra> compras = new ArrayList<>();
 
     @ManyToMany(mappedBy = "cines")
+    @BatchSize(size = 25)
     private List<Empleado> empleados = new ArrayList<>();
 
     public void addPeliculas(Pelicula pelicula) {

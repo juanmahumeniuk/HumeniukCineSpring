@@ -82,7 +82,14 @@ export const cinesApi = createResource<import('../types').Cine>('/api/cines')
 export const peliculasApi = createResource<import('../types').Pelicula>('/api/peliculas')
 export const salasApi = createResource<import('../types').Sala>('/api/salas')
 export const salasVipApi = createResource<import('../types').SalaVIP>('/api/salas-vip')
-export const funcionesApi = createResource<import('../types').Funcion>('/api/funciones')
+const funcionesResource = createResource<import('../types').Funcion>('/api/funciones')
+export const funcionesApi = {
+  ...funcionesResource,
+  countByPelicula: () =>
+    api.get<Record<string, number>>(
+      `${funcionesResource.basePath}/conteo-por-pelicula`,
+    ),
+}
 export const entradasApi = createResource<import('../types').Entrada>('/api/entradas')
 export const clientesApi = createResource<import('../types').Cliente>('/api/clientes')
 export const clientesVipApi = createResource<import('../types').ClienteVIP>('/api/clientes-vip')

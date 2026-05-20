@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { PageHeader } from '../components/layout/PageHeader'
 import { ApiTestPanel } from '../components/crud/ApiTestPanel'
 import { RowCrudActions } from '../components/crud/RowCrudActions'
@@ -29,6 +29,7 @@ import {
   proveedoresApi,
 } from '../api/client'
 import type { ResourceApi } from '../api/client'
+import { useMutationFeedback } from '../hooks/useMutationFeedback'
 
 type ResourceKey =
   | 'cines'
@@ -49,23 +50,24 @@ type ResourceKey =
 const RESOURCES: {
   key: ResourceKey
   label: string
+  singular: string
   api: ResourceApi<{ id?: number }>
   queryKey: string
 }[] = [
-  { key: 'cines', label: 'Cines', api: cinesApi, queryKey: 'cines' },
-  { key: 'peliculas', label: 'Películas', api: peliculasApi, queryKey: 'peliculas' },
-  { key: 'salas', label: 'Salas', api: salasApi, queryKey: 'salas' },
-  { key: 'salas-vip', label: 'Salas VIP', api: salasVipApi, queryKey: 'salas-vip' },
-  { key: 'funciones', label: 'Funciones', api: funcionesApi, queryKey: 'funciones' },
-  { key: 'entradas', label: 'Entradas', api: entradasApi, queryKey: 'entradas' },
-  { key: 'clientes', label: 'Clientes', api: clientesApi, queryKey: 'clientes' },
-  { key: 'clientes-vip', label: 'Clientes VIP', api: clientesVipApi, queryKey: 'clientes-vip' },
-  { key: 'empleados', label: 'Empleados', api: empleadosApi, queryKey: 'empleados' },
-  { key: 'ventas', label: 'Ventas', api: ventasApi, queryKey: 'ventas' },
-  { key: 'compras', label: 'Compras', api: comprasApi, queryKey: 'compras' },
-  { key: 'pagos', label: 'Pagos', api: pagosApi, queryKey: 'pagos' },
-  { key: 'insumos', label: 'Insumos', api: insumosApi, queryKey: 'insumos' },
-  { key: 'proveedores', label: 'Proveedores', api: proveedoresApi, queryKey: 'proveedores' },
+  { key: 'cines', label: 'Cines', singular: 'Cine', api: cinesApi, queryKey: 'cines' },
+  { key: 'peliculas', label: 'Películas', singular: 'Película', api: peliculasApi, queryKey: 'peliculas' },
+  { key: 'salas', label: 'Salas', singular: 'Sala', api: salasApi, queryKey: 'salas' },
+  { key: 'salas-vip', label: 'Salas VIP', singular: 'Sala VIP', api: salasVipApi, queryKey: 'salas-vip' },
+  { key: 'funciones', label: 'Funciones', singular: 'Función', api: funcionesApi, queryKey: 'funciones' },
+  { key: 'entradas', label: 'Entradas', singular: 'Entrada', api: entradasApi, queryKey: 'entradas' },
+  { key: 'clientes', label: 'Clientes', singular: 'Cliente', api: clientesApi, queryKey: 'clientes' },
+  { key: 'clientes-vip', label: 'Clientes VIP', singular: 'Cliente VIP', api: clientesVipApi, queryKey: 'clientes-vip' },
+  { key: 'empleados', label: 'Empleados', singular: 'Empleado', api: empleadosApi, queryKey: 'empleados' },
+  { key: 'ventas', label: 'Ventas', singular: 'Venta', api: ventasApi, queryKey: 'ventas' },
+  { key: 'compras', label: 'Compras', singular: 'Compra', api: comprasApi, queryKey: 'compras' },
+  { key: 'pagos', label: 'Pagos', singular: 'Pago', api: pagosApi, queryKey: 'pagos' },
+  { key: 'insumos', label: 'Insumos', singular: 'Insumo', api: insumosApi, queryKey: 'insumos' },
+  { key: 'proveedores', label: 'Proveedores', singular: 'Proveedor', api: proveedoresApi, queryKey: 'proveedores' },
 ]
 
 function ResourceTab({
@@ -73,7 +75,7 @@ function ResourceTab({
 }: {
   resource: (typeof RESOURCES)[number]
 }) {
-  const qc = useQueryClient()
+  const feedback = useMutationFeedback()
   const viewById = useViewById()
   const { data = [], isLoading, refetch } = useQuery({
     queryKey: [resource.queryKey],
@@ -91,19 +93,26 @@ function ResourceTab({
       if (editId) return resource.api.update(editId, body)
       return resource.api.create(body)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [resource.queryKey] })
-      setModalOpen(false)
-      setEditId(null)
-    },
+    onSuccess: feedback.onSaveSuccess(
+      [resource.queryKey],
+      resource.singular,
+      editId != null,
+      () => {
+        setModalOpen(false)
+        setEditId(null)
+      },
+    ),
+    onError: feedback.onSaveError(resource.singular, editId != null),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => resource.api.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: [resource.queryKey] })
-      setDeleteId(null)
-    },
+    onSuccess: feedback.onDeleteSuccess(
+      [resource.queryKey],
+      resource.singular,
+      () => setDeleteId(null),
+    ),
+    onError: feedback.onDeleteError(resource.singular),
   })
 
   const columns: Column<{ id?: number }>[] = [

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Button } from '../components/ui/Button'
@@ -14,12 +14,13 @@ import { RowCrudActions } from '../components/crud/RowCrudActions'
 import { JsonDetailModal } from '../components/crud/JsonDetailModal'
 import { useViewById } from '../hooks/useViewById'
 import { clientesApi, clientesVipApi } from '../api/client'
+import { useMutationFeedback } from '../hooks/useMutationFeedback'
 import type { Cliente, ClienteVIP } from '../types'
 
 type Tab = 'regular' | 'vip'
 
 export function ClientesPage() {
-  const qc = useQueryClient()
+  const feedback = useMutationFeedback()
   const viewById = useViewById()
   const [tab, setTab] = useState<Tab>('regular')
   const clientesQ = useQuery({ queryKey: ['clientes'], queryFn: clientesApi.getAll })
@@ -47,21 +48,24 @@ export function ClientesPage() {
       if (editing?.id) return clientesApi.update(editing.id, body)
       return clientesApi.create(body)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['clientes'] })
-      qc.invalidateQueries({ queryKey: ['clientes-vip'] })
-      setModalOpen(false)
-    },
+    onSuccess: feedback.onSaveSuccess(
+      [['clientes'], ['clientes-vip']],
+      isVip ? 'Cliente VIP' : 'Cliente',
+      !!editing,
+      () => setModalOpen(false),
+    ),
+    onError: feedback.onSaveError(isVip ? 'Cliente VIP' : 'Cliente', !!editing),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) =>
       isVip ? clientesVipApi.remove(id) : clientesApi.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['clientes'] })
-      qc.invalidateQueries({ queryKey: ['clientes-vip'] })
-      setDeleteId(null)
-    },
+    onSuccess: feedback.onDeleteSuccess(
+      [['clientes'], ['clientes-vip']],
+      isVip ? 'Cliente VIP' : 'Cliente',
+      () => setDeleteId(null),
+    ),
+    onError: feedback.onDeleteError(isVip ? 'Cliente VIP' : 'Cliente'),
   })
 
   const columns: Column<Cliente | ClienteVIP>[] = [

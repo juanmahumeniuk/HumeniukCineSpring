@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { ApiTestPanel } from '../components/crud/ApiTestPanel'
@@ -14,13 +14,14 @@ import { EntityModal, FormField, inputClass } from '../components/ui/EntityModal
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { useViewById } from '../hooks/useViewById'
 import { pagosApi } from '../api/client'
+import { useMutationFeedback } from '../hooks/useMutationFeedback'
 import { formatCurrency } from '../utils'
 import type { Pago, TipoPago } from '../types'
 
 const TIPOS: TipoPago[] = ['TARJETA', 'EFECTIVO']
 
 export function PagosPage() {
-  const qc = useQueryClient()
+  const feedback = useMutationFeedback()
   const viewById = useViewById()
   const { data: pagos = [], isLoading } = useQuery({
     queryKey: ['pagos'],
@@ -39,18 +40,14 @@ export function PagosPage() {
       if (editing?.id) return pagosApi.update(editing.id, body)
       return pagosApi.create(body)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['pagos'] })
-      setModalOpen(false)
-    },
+    onSuccess: feedback.onSaveSuccess(['pagos'], 'Pago', !!editing, () => setModalOpen(false)),
+    onError: feedback.onSaveError('Pago', !!editing),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => pagosApi.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['pagos'] })
-      setDeleteId(null)
-    },
+    onSuccess: feedback.onDeleteSuccess(['pagos'], 'Pago', () => setDeleteId(null)),
+    onError: feedback.onDeleteError('Pago'),
   })
 
   const columns: Column<Pago>[] = [

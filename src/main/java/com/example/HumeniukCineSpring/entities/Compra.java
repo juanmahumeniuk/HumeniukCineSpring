@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.envers.Audited;
 
 import java.time.LocalDateTime;
@@ -31,6 +32,7 @@ public class Compra extends Base {
             name = "compra_insumo",
             joinColumns = @JoinColumn(name = "compra_id"),
             inverseJoinColumns = @JoinColumn(name = "insumo_id"))
+    @BatchSize(size = 25)
     private List<Insumo> insumos = new ArrayList<>();
 
     @ManyToMany(cascade = { CascadeType.PERSIST, CascadeType.MERGE })
@@ -38,6 +40,7 @@ public class Compra extends Base {
             name = "compra_proveedor",
             joinColumns = @JoinColumn(name = "compra_id"),
             inverseJoinColumns = @JoinColumn(name = "proveedor_id"))
+    @BatchSize(size = 25)
     private List<Proveedor> proveedores = new ArrayList<>();
 
     public void addInsumos(Insumo insumo) {

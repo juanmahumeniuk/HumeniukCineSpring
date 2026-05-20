@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Button } from '../ui/Button'
 import { EntityModal, FormField, inputClass } from '../ui/EntityModal'
 import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { RowCrudActions } from './RowCrudActions'
 import { entradasApi } from '../../api/client'
+import { useMutationFeedback } from '../../hooks/useMutationFeedback'
 import { formatCurrency } from '../../utils'
 import type { Entrada } from '../../types'
 
@@ -13,7 +14,7 @@ interface EntradasCrudPanelProps {
 }
 
 export function EntradasCrudPanel({ funcionId }: EntradasCrudPanelProps) {
-  const qc = useQueryClient()
+  const feedback = useMutationFeedback()
   const { data: allEntradas = [] } = useQuery({
     queryKey: ['entradas'],
     queryFn: entradasApi.getAll,
@@ -37,20 +38,23 @@ export function EntradasCrudPanel({ funcionId }: EntradasCrudPanelProps) {
       if (editing?.id) return entradasApi.update(editing.id, body)
       return entradasApi.create(body)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['entradas'] })
-      qc.invalidateQueries({ queryKey: ['funciones'] })
-      setModalOpen(false)
-    },
+    onSuccess: feedback.onSaveSuccess(
+      [['entradas'], ['funciones']],
+      'Entrada',
+      !!editing,
+      () => setModalOpen(false),
+    ),
+    onError: feedback.onSaveError('Entrada', !!editing),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => entradasApi.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['entradas'] })
-      qc.invalidateQueries({ queryKey: ['funciones'] })
-      setDeleteId(null)
-    },
+    onSuccess: feedback.onDeleteSuccess(
+      [['entradas'], ['funciones']],
+      'Entrada',
+      () => setDeleteId(null),
+    ),
+    onError: feedback.onDeleteError('Entrada'),
   })
 
   return (

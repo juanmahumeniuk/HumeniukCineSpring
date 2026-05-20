@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { MapPin, Plus } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { ApiTestPanel } from '../components/crud/ApiTestPanel'
@@ -12,11 +12,12 @@ import { EntityModal, FormField, inputClass } from '../components/ui/EntityModal
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { useViewById } from '../hooks/useViewById'
 import { cinesApi, empleadosApi, peliculasApi } from '../api/client'
+import { useMutationFeedback } from '../hooks/useMutationFeedback'
 import { CINE_PLACEHOLDER } from '../utils'
 import type { Cine } from '../types'
 
 export function CinesPage() {
-  const qc = useQueryClient()
+  const feedback = useMutationFeedback()
   const viewById = useViewById()
   const { data: cines = [], isLoading } = useQuery({
     queryKey: ['cines'],
@@ -44,18 +45,14 @@ export function CinesPage() {
       if (editing?.id) return cinesApi.update(editing.id, body)
       return cinesApi.create(body)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['cines'] })
-      closeModal()
-    },
+    onSuccess: feedback.onSaveSuccess(['cines'], 'Cine', !!editing, closeModal),
+    onError: feedback.onSaveError('Cine', !!editing),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => cinesApi.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['cines'] })
-      setDeleteId(null)
-    },
+    onSuccess: feedback.onDeleteSuccess(['cines'], 'Cine', () => setDeleteId(null)),
+    onError: feedback.onDeleteError('Cine'),
   })
 
   function openCreate() {

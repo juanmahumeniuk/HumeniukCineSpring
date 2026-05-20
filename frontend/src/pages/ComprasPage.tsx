@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { ApiTestPanel } from '../components/crud/ApiTestPanel'
@@ -21,11 +21,12 @@ import {
   insumosApi,
   proveedoresApi,
 } from '../api/client'
+import { useMutationFeedback } from '../hooks/useMutationFeedback'
 import { formatCurrency, formatDateTime } from '../utils'
 import type { Compra } from '../types'
 
 export function ComprasPage() {
-  const qc = useQueryClient()
+  const feedback = useMutationFeedback()
   const viewById = useViewById()
   const { selectedCine } = useCineContext()
   const { data: compras = [], isLoading } = useQuery({
@@ -58,18 +59,14 @@ export function ComprasPage() {
       if (editing?.id) return comprasApi.update(editing.id, body)
       return comprasApi.create(body)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['compras'] })
-      setModalOpen(false)
-    },
+    onSuccess: feedback.onSaveSuccess(['compras'], 'Compra', !!editing, () => setModalOpen(false)),
+    onError: feedback.onSaveError('Compra', !!editing),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => comprasApi.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['compras'] })
-      setDeleteId(null)
-    },
+    onSuccess: feedback.onDeleteSuccess(['compras'], 'Compra', () => setDeleteId(null)),
+    onError: feedback.onDeleteError('Compra'),
   })
 
   const columns: Column<Compra>[] = [

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { ApiTestPanel } from '../components/crud/ApiTestPanel'
@@ -14,10 +14,11 @@ import { EntityModal, FormField, inputClass } from '../components/ui/EntityModal
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { useViewById } from '../hooks/useViewById'
 import { proveedoresApi } from '../api/client'
+import { useMutationFeedback } from '../hooks/useMutationFeedback'
 import type { Proveedor } from '../types'
 
 export function ProveedoresPage() {
-  const qc = useQueryClient()
+  const feedback = useMutationFeedback()
   const viewById = useViewById()
   const { data: proveedores = [], isLoading } = useQuery({
     queryKey: ['proveedores'],
@@ -37,18 +38,14 @@ export function ProveedoresPage() {
       if (editing?.id) return proveedoresApi.update(editing.id, body)
       return proveedoresApi.create(body)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['proveedores'] })
-      setModalOpen(false)
-    },
+    onSuccess: feedback.onSaveSuccess(['proveedores'], 'Proveedor', !!editing, () => setModalOpen(false)),
+    onError: feedback.onSaveError('Proveedor', !!editing),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => proveedoresApi.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['proveedores'] })
-      setDeleteId(null)
-    },
+    onSuccess: feedback.onDeleteSuccess(['proveedores'], 'Proveedor', () => setDeleteId(null)),
+    onError: feedback.onDeleteError('Proveedor'),
   })
 
   const columns: Column<Proveedor>[] = [

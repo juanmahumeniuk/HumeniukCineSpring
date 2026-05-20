@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { Button } from './Button'
 
@@ -37,8 +38,8 @@ export function EntityModal({
 
   if (!open) return null
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div
         className="absolute inset-0 bg-black/55 backdrop-blur-md fade-in"
         onClick={onClose}
@@ -48,12 +49,15 @@ export function EntityModal({
         className="glass-strong scale-in relative z-10 w-full max-w-md overflow-hidden rounded-3xl p-7"
         role="dialog"
         aria-modal="true"
+        aria-labelledby="entity-modal-title"
       >
         <div className="pointer-events-none absolute -left-20 -top-20 h-48 w-48 rounded-full bg-accent/15 blur-3xl" />
         <div className="pointer-events-none absolute -right-16 -bottom-16 h-40 w-40 rounded-full bg-info/15 blur-3xl" />
 
         <div className="relative mb-5 flex items-center justify-between">
-          <h2 className="heading-display text-xl">{title}</h2>
+          <h2 id="entity-modal-title" className="heading-display text-xl">
+            {title}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -81,7 +85,8 @@ export function EntityModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

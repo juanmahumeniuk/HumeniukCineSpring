@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Sparkles } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
@@ -15,6 +15,7 @@ import { MoviePosterCard } from '../components/peliculas/MoviePosterCard'
 import { MovieRail } from '../components/peliculas/MovieRail'
 import { useViewById } from '../hooks/useViewById'
 import { funcionesApi, peliculasApi } from '../api/client'
+import { useMutationFeedback } from '../hooks/useMutationFeedback'
 import { generoLabel } from '../utils'
 import type { Genero, Pelicula } from '../types'
 
@@ -34,27 +35,26 @@ const FILTER_LABELS: Record<FilterKey, string> = {
 const FILTERS: FilterKey[] = ['all', 'trending', ...GENEROS]
 
 export function PeliculasPage() {
-  const qc = useQueryClient()
   const navigate = useNavigate()
+  const feedback = useMutationFeedback()
   const viewById = useViewById()
 
   const { data: peliculas = [], isLoading } = useQuery({
     queryKey: ['peliculas'],
     queryFn: peliculasApi.getAll,
   })
-  const { data: funciones = [] } = useQuery({
-    queryKey: ['funciones'],
-    queryFn: funcionesApi.getAll,
+  const { data: conteoFunciones = {} } = useQuery({
+    queryKey: ['funciones-conteo'],
+    queryFn: funcionesApi.countByPelicula,
   })
 
   const funcionesPorPelicula = useMemo(() => {
     const map = new Map<number, number>()
-    for (const f of funciones) {
-      const pid = f.pelicula?.id
-      if (pid) map.set(pid, (map.get(pid) ?? 0) + 1)
+    for (const [id, count] of Object.entries(conteoFunciones)) {
+      map.set(Number(id), count)
     }
     return map
-  }, [funciones])
+  }, [conteoFunciones])
 
   const peliculasByGenero = useMemo(() => {
     const grouped = new Map<Genero, Pelicula[]>()
@@ -64,7 +64,7 @@ export function PeliculasPage() {
       if (list) list.push(p)
     }
     return grouped
-  }, [peliculas])
+  }, ['peliculas'])
 
   const trending = useMemo(() => {
     return [...peliculas]
@@ -110,18 +110,23 @@ export function PeliculasPage() {
       if (editing?.id) return peliculasApi.update(editing.id, body)
       return peliculasApi.create(body)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['peliculas'] })
-      closeModal()
-    },
+    onSuccess: feedback.onSaveSuccess(
+      [['peliculas'], ['funciones-conteo']],
+      'Película',
+      !!editing,
+      closeModal,
+    ),
+    onError: feedback.onSaveError('Película', !!editing),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => peliculasApi.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['peliculas'] })
-      setDeleteId(null)
-    },
+    onSuccess: feedback.onDeleteSuccess(
+      [['peliculas'], ['funciones-conteo']],
+      'Película',
+      () => setDeleteId(null),
+    ),
+    onError: feedback.onDeleteError('Película'),
   })
 
   function resetForm() {

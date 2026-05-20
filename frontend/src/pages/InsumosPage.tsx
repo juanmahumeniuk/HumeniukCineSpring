@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { ApiTestPanel } from '../components/crud/ApiTestPanel'
@@ -14,11 +14,12 @@ import { EntityModal, FormField, inputClass } from '../components/ui/EntityModal
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { useViewById } from '../hooks/useViewById'
 import { insumosApi } from '../api/client'
+import { useMutationFeedback } from '../hooks/useMutationFeedback'
 import { formatCurrency } from '../utils'
 import type { Insumo } from '../types'
 
 export function InsumosPage() {
-  const qc = useQueryClient()
+  const feedback = useMutationFeedback()
   const viewById = useViewById()
   const { data: insumos = [], isLoading } = useQuery({
     queryKey: ['insumos'],
@@ -37,18 +38,14 @@ export function InsumosPage() {
       if (editing?.id) return insumosApi.update(editing.id, body)
       return insumosApi.create(body)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['insumos'] })
-      setModalOpen(false)
-    },
+    onSuccess: feedback.onSaveSuccess(['insumos'], 'Insumo', !!editing, () => setModalOpen(false)),
+    onError: feedback.onSaveError('Insumo', !!editing),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => insumosApi.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['insumos'] })
-      setDeleteId(null)
-    },
+    onSuccess: feedback.onDeleteSuccess(['insumos'], 'Insumo', () => setDeleteId(null)),
+    onError: feedback.onDeleteError('Insumo'),
   })
 
   const columns: Column<Insumo>[] = [

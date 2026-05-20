@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Button } from '../components/ui/Button'
@@ -14,10 +14,11 @@ import { RowCrudActions } from '../components/crud/RowCrudActions'
 import { JsonDetailModal } from '../components/crud/JsonDetailModal'
 import { useViewById } from '../hooks/useViewById'
 import { empleadosApi } from '../api/client'
+import { useMutationFeedback } from '../hooks/useMutationFeedback'
 import type { Empleado } from '../types'
 
 export function EmpleadosPage() {
-  const qc = useQueryClient()
+  const feedback = useMutationFeedback()
   const viewById = useViewById()
   const { data: empleados = [], isLoading } = useQuery({
     queryKey: ['empleados'],
@@ -36,18 +37,14 @@ export function EmpleadosPage() {
       if (editing?.id) return empleadosApi.update(editing.id, body)
       return empleadosApi.create(body)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['empleados'] })
-      setModalOpen(false)
-    },
+    onSuccess: feedback.onSaveSuccess(['empleados'], 'Empleado', !!editing, () => setModalOpen(false)),
+    onError: feedback.onSaveError('Empleado', !!editing),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => empleadosApi.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['empleados'] })
-      setDeleteId(null)
-    },
+    onSuccess: feedback.onDeleteSuccess(['empleados'], 'Empleado', () => setDeleteId(null)),
+    onError: feedback.onDeleteError('Empleado'),
   })
 
   const columns: Column<Empleado>[] = [

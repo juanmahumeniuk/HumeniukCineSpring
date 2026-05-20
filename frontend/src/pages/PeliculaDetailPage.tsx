@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -19,6 +19,7 @@ import { EntityModal, FormField, inputClass } from '../components/ui/EntityModal
 import { GenreBadge } from '../components/ui/GenreBadge'
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton'
 import { funcionesApi, peliculasApi } from '../api/client'
+import { useMutationFeedback } from '../hooks/useMutationFeedback'
 import { formatPuntaje, generoLabel, posterOriginalForPelicula } from '../utils'
 import type { Genero, Pelicula } from '../types'
 
@@ -28,7 +29,7 @@ export function PeliculaDetailPage() {
   const { id } = useParams<{ id: string }>()
   const peliculaId = Number(id)
   const navigate = useNavigate()
-  const qc = useQueryClient()
+  const feedback = useMutationFeedback()
 
   const validId = Number.isFinite(peliculaId) && peliculaId > 0
 
@@ -91,11 +92,13 @@ export function PeliculaDetailPage() {
       }
       return peliculasApi.update(peliculaId, body)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['peliculas'] })
-      qc.invalidateQueries({ queryKey: ['peliculas', peliculaId] })
-      setModalOpen(false)
-    },
+    onSuccess: feedback.onSaveSuccess(
+      [['peliculas'], ['peliculas', peliculaId]],
+      'Película',
+      true,
+      () => setModalOpen(false),
+    ),
+    onError: feedback.onSaveError('Película', true),
   })
 
   if (!validId) {

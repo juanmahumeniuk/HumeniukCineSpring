@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Clock, DollarSign, Grid3x3, Plus, Users } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { Button } from '../components/ui/Button'
@@ -20,6 +20,7 @@ import {
   salasApi,
   salasVipApi,
 } from '../api/client'
+import { useMutationFeedback } from '../hooks/useMutationFeedback'
 import { calcOcupacion, formatCurrency, posterForPelicula, sumEntradasPrecio } from '../utils'
 import { filterFuncionesByTab, joinFuncionesWithRefs } from '../utils/funciones'
 import type { Funcion } from '../types'
@@ -27,7 +28,7 @@ import type { Funcion } from '../types'
 type Tab = 'hoy' | 'semana' | 'todas'
 
 export function FuncionesPage() {
-  const qc = useQueryClient()
+  const feedback = useMutationFeedback()
   const viewById = useViewById()
   const [tab, setTab] = useState<Tab>('todas')
   const funcionesQ = useQuery({ queryKey: ['funciones'], queryFn: funcionesApi.getAll })
@@ -75,18 +76,14 @@ export function FuncionesPage() {
       if (editing?.id) return funcionesApi.update(editing.id, body)
       return funcionesApi.create(body)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['funciones'] })
-      setModalOpen(false)
-    },
+    onSuccess: feedback.onSaveSuccess(['funciones'], 'Función', !!editing, () => setModalOpen(false)),
+    onError: feedback.onSaveError('Función', !!editing),
   })
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => funcionesApi.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['funciones'] })
-      setDeleteId(null)
-    },
+    onSuccess: feedback.onDeleteSuccess(['funciones'], 'Función', () => setDeleteId(null)),
+    onError: feedback.onDeleteError('Función'),
   })
 
   const isLoading =

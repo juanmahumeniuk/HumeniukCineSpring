@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.envers.Audited;
 
 import java.util.ArrayList;
@@ -29,6 +30,7 @@ public class Funcion extends Base {
     private Sala sala;
 
     @OneToMany(mappedBy = "funcion", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 25)
     private List<Entrada> entradas = new ArrayList<>();
 
     @ManyToMany(mappedBy = "funciones")

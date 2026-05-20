@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Plus, Users } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
 import { StatCard } from '../components/ui/StatCard'
@@ -21,12 +21,13 @@ import {
   salasApi,
   salasVipApi,
 } from '../api/client'
+import { useMutationFeedback } from '../hooks/useMutationFeedback'
 import { mergeSalas } from '../utils'
 import { joinFuncionesWithRefs } from '../utils/funciones'
 import type { SalaMerged } from '../types'
 
 export function SalasPage() {
-  const qc = useQueryClient()
+  const feedback = useMutationFeedback()
   const viewById = useViewById()
   const { selectedCine } = useCineContext()
   const salasQ = useQuery({ queryKey: ['salas'], queryFn: salasApi.getAll })
@@ -87,21 +88,24 @@ export function SalasPage() {
       if (editing?.id) return salasApi.update(editing.id, body)
       return salasApi.create(body)
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['salas'] })
-      qc.invalidateQueries({ queryKey: ['salas-vip'] })
-      setModalOpen(false)
-    },
+    onSuccess: feedback.onSaveSuccess(
+      [['salas'], ['salas-vip']],
+      isVip ? 'Sala VIP' : 'Sala',
+      !!editing,
+      () => setModalOpen(false),
+    ),
+    onError: feedback.onSaveError(isVip ? 'Sala VIP' : 'Sala', !!editing),
   })
 
   const deleteMutation = useMutation({
     mutationFn: ({ id, vip }: { id: number; vip: boolean }) =>
       vip ? salasVipApi.remove(id) : salasApi.remove(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['salas'] })
-      qc.invalidateQueries({ queryKey: ['salas-vip'] })
-      setDeleteId(null)
-    },
+    onSuccess: feedback.onDeleteSuccess(
+      [['salas'], ['salas-vip']],
+      isVip ? 'Sala VIP' : 'Sala',
+      () => setDeleteId(null),
+    ),
+    onError: feedback.onDeleteError(isVip ? 'Sala VIP' : 'Sala'),
   })
 
   const columns: Column<SalaMerged>[] = [
