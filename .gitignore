@@ -8,6 +8,7 @@ build/
 
 ### Variables del entorno ###
 */application.properties
+.env
 
 ### STS ###
 .apt_generated

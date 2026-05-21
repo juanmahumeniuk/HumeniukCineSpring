@@ -64,7 +64,7 @@ export function PeliculasPage() {
       if (list) list.push(p)
     }
     return grouped
-  }, ['peliculas'])
+  }, [peliculas])
 
   const trending = useMemo(() => {
     return [...peliculas]

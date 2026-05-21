@@ -8,6 +8,8 @@ SPA React + Vite + TypeScript con estética dark/gold del mockup de administraci
 - Backend Spring Boot en ejecución (`./gradlew bootRun`, puerto **9000**)
 - MySQL con la base `db_cine` configurada
 
+**Sin instalar Node ni Java:** desde la raíz del repo, `cp .env.example .env && docker compose up --build` y abrir http://localhost:8080 (nginx sirve el build y proxyea `/api` al backend). Ver el README principal, sección «Ejecución con Docker».
+
 ## Instalación y ejecución
 
 ```bash

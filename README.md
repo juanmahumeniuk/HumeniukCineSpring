@@ -36,6 +36,7 @@
 - [API REST](#api-rest)
 - [Auditoría con Hibernate Envers](#auditoría-con-hibernate-envers)
 - [Requisitos previos](#requisitos-previos)
+- [Ejecución con Docker](#ejecución-con-docker)
 - [Configuración de la base de datos](#configuración-de-la-base-de-datos)
 - [Puesta en marcha del backend](#puesta-en-marcha-del-backend)
 - [Puesta en marcha del frontend](#puesta-en-marcha-del-frontend)
@@ -311,6 +312,62 @@ mysql --version
 
 ---
 
+## Ejecución con Docker
+
+Forma recomendada para **evaluar el proyecto sin instalar** Java, Gradle, Node ni MySQL. Levanta tres servicios: MySQL, backend Spring Boot y frontend (nginx).
+
+| Requisito | Detalle |
+|-----------|---------|
+| **Docker Engine** | 24+ |
+| **Docker Compose** | v2 (`docker compose`) |
+
+### Pasos
+
+Desde la **raíz del repositorio**:
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+La **primera ejecución** puede tardar varios minutos (descarga de imágenes, compilación Gradle, `npm ci`, creación del esquema y seed).
+
+Cuando el backend esté listo, en los logs debería aparecer algo como `Seed completado` (si la base estaba vacía). Luego:
+
+| Recurso | URL |
+|---------|-----|
+| **Panel de administración** | http://localhost:8080 |
+| **API REST (directo)** | http://localhost:9000/api/... |
+
+Ejemplo:
+
+```bash
+curl -s http://localhost:9000/api/peliculas | head -c 200
+```
+
+### Comandos útiles
+
+```bash
+docker compose logs -f backend    # seguir logs del backend
+docker compose down               # detener contenedores (conserva datos MySQL)
+docker compose down -v            # detener y borrar volumen (re-ejecuta seed al volver a levantar)
+```
+
+### Arquitectura Docker
+
+```
+localhost:8080  →  frontend (nginx)  →  /api/*  →  backend:9000  →  mysql:3306
+localhost:9000  →  backend (API directa, opcional)
+```
+
+Credenciales por defecto en `.env.example` (usuario `cine`, base `db_cine`). El perfil Spring `docker` está en `src/main/resources/application-docker.properties`.
+
+### Desarrollo local
+
+Si vas a modificar código con hot-reload, seguí usando el flujo local de las secciones siguientes (`./gradlew bootRun` + `npm run dev`). Docker está orientado a **demo y corrección**.
+
+---
+
 ## Configuración de la base de datos
 
 ### 1. Crear la base y el usuario
@@ -431,6 +488,10 @@ Para **forzar una recarga** en desarrollo: vaciar tablas o eliminar la base y re
 
 ```
 HumeniukCineSpring/
+├── docker-compose.yml           # MySQL + backend + frontend
+├── Dockerfile.backend           # Imagen Spring Boot (JDK 17)
+├── Dockerfile.frontend          # Build Vite + nginx
+├── .env.example                 # Variables para Docker Compose
 ├── build.gradle                 # Dependencias Spring Boot + Envers
 ├── gradlew / gradlew.bat        # Wrapper Gradle
 ├── src/main/java/.../           # Código backend
@@ -510,6 +571,9 @@ La aplicación quedará accesible en `http://localhost:9000` con la SPA y la API
 | Frontend sin datos | Backend no levantado en :9000 | `./gradlew bootRun` antes de `npm run dev` |
 | Imágenes sin cargar | Falta `public/media/` | `npm run media:download` o commitear media en el repo |
 | CORS en producción | Origen distinto al configurado | Restringir `@CrossOrigin` al dominio real |
+| Docker: backend no arranca | MySQL aún no listo o build fallido | `docker compose logs backend`; esperar healthcheck (~90 s la 1.ª vez) |
+| Docker: seed no corre | Volumen `mysql_data` con datos previos | `docker compose down -v` y volver a `up --build` |
+| Docker: panel sin datos | Frontend antes que backend | Esperar a que `backend` esté healthy; revisar `docker compose ps` |
 
 ---
 
