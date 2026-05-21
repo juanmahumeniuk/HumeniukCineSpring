@@ -14,6 +14,7 @@ import { EntradasCrudPanel } from '../components/crud/EntradasCrudPanel'
 import { useViewById } from '../hooks/useViewById'
 import { JsonDetailModal } from '../components/crud/JsonDetailModal'
 import {
+  cinesApi,
   entradasApi,
   funcionesApi,
   peliculasApi,
@@ -21,6 +22,8 @@ import {
   salasVipApi,
 } from '../api/client'
 import { useMutationFeedback } from '../hooks/useMutationFeedback'
+import { useFormErrors } from '../hooks/useFormErrors'
+import { compose, required, timeHHmm } from '../lib/validation'
 import { calcOcupacion, formatCurrency, posterForPelicula, sumEntradasPrecio } from '../utils'
 import { filterFuncionesByTab, joinFuncionesWithRefs } from '../utils/funciones'
 import type { Funcion } from '../types'
@@ -30,17 +33,37 @@ type Tab = 'hoy' | 'semana' | 'todas'
 export function FuncionesPage() {
   const feedback = useMutationFeedback()
   const viewById = useViewById()
+  const { errors, validate, clearError, reset: resetErrors } = useFormErrors()
   const [tab, setTab] = useState<Tab>('todas')
   const funcionesQ = useQuery({ queryKey: ['funciones'], queryFn: funcionesApi.getAll })
   const peliculasQ = useQuery({ queryKey: ['peliculas'], queryFn: peliculasApi.getAll })
   const salasQ = useQuery({ queryKey: ['salas'], queryFn: salasApi.getAll })
   const vipQ = useQuery({ queryKey: ['salas-vip'], queryFn: salasVipApi.getAll })
   const entradasQ = useQuery({ queryKey: ['entradas'], queryFn: entradasApi.getAll })
+  const cinesQ = useQuery({ queryKey: ['cines'], queryFn: cinesApi.getAll })
 
   const allSalas = useMemo(
     () => [...(salasQ.data ?? []), ...(vipQ.data ?? [])],
     [salasQ.data, vipQ.data],
   )
+
+  // /api/salas oculta `cine` (@JsonIgnore). Reconstruimos el nombre del cine
+  // de cada sala desde /api/cines, que sí expone su lista de salas.
+  const cineNombrePorSala = useMemo(() => {
+    const map = new Map<number, string>()
+    for (const c of cinesQ.data ?? []) {
+      for (const s of c.salas ?? []) {
+        if (s.id != null) map.set(s.id, c.nombre)
+      }
+    }
+    return map
+  }, [cinesQ.data])
+
+  function salaLabel(s: { id?: number; numero?: number }): string {
+    const numero = s.numero != null ? `Sala ${s.numero}` : 'Sala —'
+    const cine = s.id ? cineNombrePorSala.get(s.id) : undefined
+    return cine ? `${numero} — ${cine}` : numero
+  }
 
   const enriched = useMemo(
     () =>
@@ -66,6 +89,11 @@ export function FuncionesPage() {
   const [peliculaId, setPeliculaId] = useState<number | ''>('')
   const [salaId, setSalaId] = useState<number | ''>('')
 
+  function closeModal() {
+    setModalOpen(false)
+    resetErrors()
+  }
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const body = {
@@ -76,9 +104,22 @@ export function FuncionesPage() {
       if (editing?.id) return funcionesApi.update(editing.id, body)
       return funcionesApi.create(body)
     },
-    onSuccess: feedback.onSaveSuccess(['funciones'], 'Función', !!editing, () => setModalOpen(false)),
+    onSuccess: feedback.onSaveSuccess(['funciones'], 'Función', !!editing, closeModal),
     onError: feedback.onSaveError('Función', !!editing),
   })
+
+  function handleSubmit() {
+    const ok = validate(
+      { horario, pelicula: peliculaId, sala: salaId },
+      {
+        horario: compose(required('El horario'), timeHHmm('El horario')),
+        pelicula: required('La película'),
+        sala: required('La sala'),
+      },
+    )
+    if (!ok) return
+    saveMutation.mutate()
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => funcionesApi.remove(id),
@@ -107,6 +148,7 @@ export function FuncionesPage() {
               setHorario('18:00')
               setPeliculaId('')
               setSalaId('')
+              resetErrors()
               setModalOpen(true)
             }}
           >
@@ -210,6 +252,7 @@ export function FuncionesPage() {
                         setHorario(f.horario ?? '')
                         setPeliculaId(f.pelicula?.id ?? '')
                         setSalaId(f.sala?.id ?? '')
+                        resetErrors()
                         setModalOpen(true)
                       }}
                     >
@@ -245,25 +288,35 @@ export function FuncionesPage() {
       <EntityModal
         open={modalOpen}
         title={editing ? 'Editar función' : 'Nueva función'}
-        onClose={() => setModalOpen(false)}
-        onSubmit={() => saveMutation.mutate()}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
         isSubmitting={saveMutation.isPending}
+        hasFieldErrors={Object.keys(errors).length > 0}
       >
-        <FormField label="Horario">
+        <FormField
+          label="Horario"
+          required
+          error={errors.horario}
+          hint="Formato 24 horas, HH:mm (por ejemplo 18:30)."
+        >
           <input
             className={inputClass}
             value={horario}
-            onChange={(e) => setHorario(e.target.value)}
+            onChange={(e) => {
+              setHorario(e.target.value)
+              clearError('horario')
+            }}
             placeholder="18:00"
           />
         </FormField>
-        <FormField label="Película">
+        <FormField label="Película" required error={errors.pelicula}>
           <select
             className={inputClass}
             value={peliculaId}
-            onChange={(e) =>
+            onChange={(e) => {
               setPeliculaId(e.target.value ? Number(e.target.value) : '')
-            }
+              clearError('pelicula')
+            }}
           >
             <option value="">Seleccionar</option>
             {(peliculasQ.data ?? []).map((p) => (
@@ -273,16 +326,19 @@ export function FuncionesPage() {
             ))}
           </select>
         </FormField>
-        <FormField label="Sala">
+        <FormField label="Sala" required error={errors.sala}>
           <select
             className={inputClass}
             value={salaId}
-            onChange={(e) => setSalaId(e.target.value ? Number(e.target.value) : '')}
+            onChange={(e) => {
+              setSalaId(e.target.value ? Number(e.target.value) : '')
+              clearError('sala')
+            }}
           >
             <option value="">Seleccionar</option>
             {allSalas.map((s) => (
               <option key={s.id} value={s.id}>
-                Sala {s.numero}
+                {salaLabel(s)}
               </option>
             ))}
           </select>

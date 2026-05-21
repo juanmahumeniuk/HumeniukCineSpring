@@ -15,6 +15,14 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { useViewById } from '../hooks/useViewById'
 import { pagosApi } from '../api/client'
 import { useMutationFeedback } from '../hooks/useMutationFeedback'
+import { useFormErrors } from '../hooks/useFormErrors'
+import {
+  compose,
+  max as maxValue,
+  oneOf,
+  positive,
+  required,
+} from '../lib/validation'
 import { formatCurrency } from '../utils'
 import type { Pago, TipoPago } from '../types'
 
@@ -23,6 +31,7 @@ const TIPOS: TipoPago[] = ['TARJETA', 'EFECTIVO']
 export function PagosPage() {
   const feedback = useMutationFeedback()
   const viewById = useViewById()
+  const { errors, validate, clearError, reset: resetErrors } = useFormErrors()
   const { data: pagos = [], isLoading } = useQuery({
     queryKey: ['pagos'],
     queryFn: pagosApi.getAll,
@@ -34,15 +43,36 @@ export function PagosPage() {
   const [monto, setMonto] = useState(0)
   const [tipo, setTipo] = useState<TipoPago>('EFECTIVO')
 
+  function closeModal() {
+    setModalOpen(false)
+    resetErrors()
+  }
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const body = { monto, tipo }
       if (editing?.id) return pagosApi.update(editing.id, body)
       return pagosApi.create(body)
     },
-    onSuccess: feedback.onSaveSuccess(['pagos'], 'Pago', !!editing, () => setModalOpen(false)),
+    onSuccess: feedback.onSaveSuccess(['pagos'], 'Pago', !!editing, closeModal),
     onError: feedback.onSaveError('Pago', !!editing),
   })
+
+  function handleSubmit() {
+    const ok = validate(
+      { monto, tipo },
+      {
+        monto: compose(
+          required('El monto'),
+          positive('El monto'),
+          maxValue(10_000_000, 'El monto'),
+        ),
+        tipo: compose(required('El tipo de pago'), oneOf(TIPOS, 'El tipo de pago')),
+      },
+    )
+    if (!ok) return
+    saveMutation.mutate()
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => pagosApi.remove(id),
@@ -67,6 +97,7 @@ export function PagosPage() {
               setEditing(null)
               setMonto(0)
               setTipo('EFECTIVO')
+              resetErrors()
               setModalOpen(true)
             }}
           >
@@ -97,6 +128,7 @@ export function PagosPage() {
                 setEditing(p)
                 setMonto(p.monto)
                 setTipo(p.tipo)
+                resetErrors()
                 setModalOpen(true)
               }}
               onDelete={() => p.id && setDeleteId(p.id)}
@@ -108,24 +140,32 @@ export function PagosPage() {
       <EntityModal
         open={modalOpen}
         title={editing ? 'Editar pago (PUT)' : 'Nuevo pago (POST)'}
-        onClose={() => setModalOpen(false)}
-        onSubmit={() => saveMutation.mutate()}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
         isSubmitting={saveMutation.isPending}
+        hasFieldErrors={Object.keys(errors).length > 0}
       >
-        <FormField label="Monto">
+        <FormField label="Monto" required error={errors.monto}>
           <input
             type="number"
+            min={0}
+            step={0.01}
             className={inputClass}
             value={monto || ''}
-            onChange={(e) => setMonto(Number(e.target.value))}
-            required
+            onChange={(e) => {
+              setMonto(Number(e.target.value))
+              clearError('monto')
+            }}
           />
         </FormField>
-        <FormField label="Tipo">
+        <FormField label="Tipo" required error={errors.tipo}>
           <select
             className={inputClass}
             value={tipo}
-            onChange={(e) => setTipo(e.target.value as TipoPago)}
+            onChange={(e) => {
+              setTipo(e.target.value as TipoPago)
+              clearError('tipo')
+            }}
           >
             {TIPOS.map((t) => (
               <option key={t} value={t}>

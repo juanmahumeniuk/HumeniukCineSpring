@@ -16,6 +16,16 @@ import { MovieRail } from '../components/peliculas/MovieRail'
 import { useViewById } from '../hooks/useViewById'
 import { funcionesApi, peliculasApi } from '../api/client'
 import { useMutationFeedback } from '../hooks/useMutationFeedback'
+import { useFormErrors } from '../hooks/useFormErrors'
+import {
+  between,
+  compose,
+  integer,
+  maxLength,
+  minLength,
+  oneOf,
+  required,
+} from '../lib/validation'
 import { generoLabel } from '../utils'
 import type { Genero, Pelicula } from '../types'
 
@@ -38,6 +48,7 @@ export function PeliculasPage() {
   const navigate = useNavigate()
   const feedback = useMutationFeedback()
   const viewById = useViewById()
+  const { errors, validate, clearError, reset: resetErrors } = useFormErrors()
 
   const { data: peliculas = [], isLoading } = useQuery({
     queryKey: ['peliculas'],
@@ -138,6 +149,7 @@ export function PeliculasPage() {
     setDuracionMinutos('')
     setDirector('')
     setClasificacion('')
+    resetErrors()
   }
 
   function openCreate() {
@@ -156,12 +168,48 @@ export function PeliculasPage() {
     setDuracionMinutos(p.duracionMinutos != null ? String(p.duracionMinutos) : '')
     setDirector(p.director ?? '')
     setClasificacion(p.clasificacion ?? '')
+    resetErrors()
     setModalOpen(true)
   }
 
   function closeModal() {
     setModalOpen(false)
     setEditing(null)
+    resetErrors()
+  }
+
+  function handleSubmit() {
+    const ok = validate(
+      {
+        titulo,
+        genero,
+        descripcion,
+        puntaje,
+        anio,
+        duracionMinutos,
+        director,
+        clasificacion,
+      },
+      {
+        titulo: compose(
+          required('El título'),
+          minLength(2, 'El título'),
+          maxLength(120, 'El título'),
+        ),
+        genero: oneOf(GENEROS, 'El género'),
+        descripcion: maxLength(2000, 'La descripción'),
+        puntaje: between(0, 10, 'El puntaje'),
+        anio: compose(integer('El año'), between(1888, 2100, 'El año')),
+        duracionMinutos: compose(
+          integer('La duración'),
+          between(1, 600, 'La duración (minutos)'),
+        ),
+        director: maxLength(120, 'El director'),
+        clasificacion: maxLength(20, 'La clasificación'),
+      },
+    )
+    if (!ok) return
+    saveMutation.mutate()
   }
 
   function openPelicula(p: Pelicula) {
@@ -292,22 +340,28 @@ export function PeliculasPage() {
         open={modalOpen}
         title={editing ? 'Editar película' : 'Nueva película'}
         onClose={closeModal}
-        onSubmit={() => saveMutation.mutate()}
+        onSubmit={handleSubmit}
         isSubmitting={saveMutation.isPending}
+        hasFieldErrors={Object.keys(errors).length > 0}
       >
-        <FormField label="Título">
+        <FormField label="Título" required error={errors.titulo}>
           <input
             className={inputClass}
             value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            required
+            onChange={(e) => {
+              setTitulo(e.target.value)
+              clearError('titulo')
+            }}
           />
         </FormField>
-        <FormField label="Género">
+        <FormField label="Género" required error={errors.genero}>
           <select
             className={inputClass}
             value={genero}
-            onChange={(e) => setGenero(e.target.value as Genero)}
+            onChange={(e) => {
+              setGenero(e.target.value as Genero)
+              clearError('genero')
+            }}
           >
             {GENEROS.map((g) => (
               <option key={g} value={g}>
@@ -316,16 +370,19 @@ export function PeliculasPage() {
             ))}
           </select>
         </FormField>
-        <FormField label="Descripción">
+        <FormField label="Descripción" error={errors.descripcion}>
           <textarea
             className={`${inputClass} min-h-[88px] resize-y`}
             value={descripcion}
-            onChange={(e) => setDescripcion(e.target.value)}
+            onChange={(e) => {
+              setDescripcion(e.target.value)
+              clearError('descripcion')
+            }}
             rows={3}
           />
         </FormField>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <FormField label="Puntaje (0–10)">
+          <FormField label="Puntaje (0–10)" error={errors.puntaje}>
             <input
               className={inputClass}
               type="number"
@@ -333,41 +390,60 @@ export function PeliculasPage() {
               max={10}
               step={0.1}
               value={puntaje}
-              onChange={(e) => setPuntaje(e.target.value)}
+              onChange={(e) => {
+                setPuntaje(e.target.value)
+                clearError('puntaje')
+              }}
             />
           </FormField>
-          <FormField label="Año">
+          <FormField label="Año" error={errors.anio}>
             <input
               className={inputClass}
               type="number"
               min={1888}
               max={2100}
               value={anio}
-              onChange={(e) => setAnio(e.target.value)}
+              onChange={(e) => {
+                setAnio(e.target.value)
+                clearError('anio')
+              }}
             />
           </FormField>
-          <FormField label="Duración (min)">
+          <FormField label="Duración (min)" error={errors.duracionMinutos}>
             <input
               className={inputClass}
               type="number"
               min={1}
               value={duracionMinutos}
-              onChange={(e) => setDuracionMinutos(e.target.value)}
+              onChange={(e) => {
+                setDuracionMinutos(e.target.value)
+                clearError('duracionMinutos')
+              }}
             />
           </FormField>
         </div>
-        <FormField label="Director">
+        <FormField label="Director" error={errors.director}>
           <input
             className={inputClass}
             value={director}
-            onChange={(e) => setDirector(e.target.value)}
+            onChange={(e) => {
+              setDirector(e.target.value)
+              clearError('director')
+            }}
           />
         </FormField>
-        <FormField label="Clasificación">
+        <FormField
+          label="Clasificación"
+          error={errors.clasificacion}
+          hint="Ejemplos: ATP, +13, +16"
+        >
           <input
             className={inputClass}
             value={clasificacion}
-            onChange={(e) => setClasificacion(e.target.value)}
+            onChange={(e) => {
+              setClasificacion(e.target.value)
+              clearError('clasificacion')
+            }}
             placeholder="ATP, +13, +16…"
           />
         </FormField>

@@ -6,6 +6,14 @@ import { ConfirmDialog } from '../ui/ConfirmDialog'
 import { RowCrudActions } from './RowCrudActions'
 import { entradasApi } from '../../api/client'
 import { useMutationFeedback } from '../../hooks/useMutationFeedback'
+import { useFormErrors } from '../../hooks/useFormErrors'
+import {
+  compose,
+  max as maxValue,
+  maxLength,
+  positive,
+  required,
+} from '../../lib/validation'
 import { formatCurrency } from '../../utils'
 import type { Entrada } from '../../types'
 
@@ -15,6 +23,7 @@ interface EntradasCrudPanelProps {
 
 export function EntradasCrudPanel({ funcionId }: EntradasCrudPanelProps) {
   const feedback = useMutationFeedback()
+  const { errors, validate, clearError, reset: resetErrors } = useFormErrors()
   const { data: allEntradas = [] } = useQuery({
     queryKey: ['entradas'],
     queryFn: entradasApi.getAll,
@@ -27,6 +36,11 @@ export function EntradasCrudPanel({ funcionId }: EntradasCrudPanelProps) {
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [precio, setPrecio] = useState(0)
   const [asiento, setAsiento] = useState('')
+
+  function closeModal() {
+    setModalOpen(false)
+    resetErrors()
+  }
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -42,10 +56,29 @@ export function EntradasCrudPanel({ funcionId }: EntradasCrudPanelProps) {
       [['entradas'], ['funciones']],
       'Entrada',
       !!editing,
-      () => setModalOpen(false),
+      closeModal,
     ),
     onError: feedback.onSaveError('Entrada', !!editing),
   })
+
+  function handleSubmit() {
+    const ok = validate(
+      { asiento, precio },
+      {
+        asiento: compose(
+          required('El asiento'),
+          maxLength(10, 'El asiento'),
+        ),
+        precio: compose(
+          required('El precio'),
+          positive('El precio'),
+          maxValue(1_000_000, 'El precio'),
+        ),
+      },
+    )
+    if (!ok) return
+    saveMutation.mutate()
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => entradasApi.remove(id),
@@ -69,6 +102,7 @@ export function EntradasCrudPanel({ funcionId }: EntradasCrudPanelProps) {
             setEditing(null)
             setPrecio(0)
             setAsiento('')
+            resetErrors()
             setModalOpen(true)
           }}
         >
@@ -93,6 +127,7 @@ export function EntradasCrudPanel({ funcionId }: EntradasCrudPanelProps) {
                   setEditing(e)
                   setPrecio(e.precio)
                   setAsiento(e.asiento)
+                  resetErrors()
                   setModalOpen(true)
                 }}
                 onDelete={() => e.id && setDeleteId(e.id)}
@@ -105,25 +140,37 @@ export function EntradasCrudPanel({ funcionId }: EntradasCrudPanelProps) {
       <EntityModal
         open={modalOpen}
         title={editing ? 'Editar entrada' : 'Nueva entrada'}
-        onClose={() => setModalOpen(false)}
-        onSubmit={() => saveMutation.mutate()}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
         isSubmitting={saveMutation.isPending}
+        hasFieldErrors={Object.keys(errors).length > 0}
       >
-        <FormField label="Asiento">
+        <FormField
+          label="Asiento"
+          required
+          error={errors.asiento}
+          hint="Hasta 10 caracteres (por ejemplo: A12, B-07)."
+        >
           <input
             className={inputClass}
             value={asiento}
-            onChange={(ev) => setAsiento(ev.target.value)}
-            required
+            onChange={(ev) => {
+              setAsiento(ev.target.value)
+              clearError('asiento')
+            }}
           />
         </FormField>
-        <FormField label="Precio">
+        <FormField label="Precio" required error={errors.precio}>
           <input
             type="number"
+            min={0}
+            step={0.01}
             className={inputClass}
             value={precio || ''}
-            onChange={(ev) => setPrecio(Number(ev.target.value))}
-            required
+            onChange={(ev) => {
+              setPrecio(Number(ev.target.value))
+              clearError('precio')
+            }}
           />
         </FormField>
       </EntityModal>
