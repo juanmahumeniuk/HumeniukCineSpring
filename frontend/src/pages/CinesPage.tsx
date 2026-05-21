@@ -13,12 +13,15 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { useViewById } from '../hooks/useViewById'
 import { cinesApi, empleadosApi, peliculasApi } from '../api/client'
 import { useMutationFeedback } from '../hooks/useMutationFeedback'
+import { useFormErrors } from '../hooks/useFormErrors'
+import { compose, maxLength, minLength, required } from '../lib/validation'
 import { CINE_PLACEHOLDER } from '../utils'
 import type { Cine } from '../types'
 
 export function CinesPage() {
   const feedback = useMutationFeedback()
   const viewById = useViewById()
+  const { errors, validate, clearError, reset: resetErrors } = useFormErrors()
   const { data: cines = [], isLoading } = useQuery({
     queryKey: ['cines'],
     queryFn: cinesApi.getAll,
@@ -61,6 +64,7 @@ export function CinesPage() {
     setDireccion('')
     setPeliculaIds([])
     setEmpleadoIds([])
+    resetErrors()
     setModalOpen(true)
   }
 
@@ -70,12 +74,34 @@ export function CinesPage() {
     setDireccion(c.direccion)
     setPeliculaIds((c.peliculas ?? []).map((p) => p.id!).filter(Boolean))
     setEmpleadoIds((c.empleados ?? []).map((e) => e.id!).filter(Boolean))
+    resetErrors()
     setModalOpen(true)
   }
 
   function closeModal() {
     setModalOpen(false)
     setEditing(null)
+    resetErrors()
+  }
+
+  function handleSubmit() {
+    const ok = validate(
+      { nombre, direccion },
+      {
+        nombre: compose(
+          required('El nombre'),
+          minLength(2, 'El nombre'),
+          maxLength(80, 'El nombre'),
+        ),
+        direccion: compose(
+          required('La dirección'),
+          minLength(4, 'La dirección'),
+          maxLength(120, 'La dirección'),
+        ),
+      },
+    )
+    if (!ok) return
+    saveMutation.mutate()
   }
 
   return (
@@ -163,23 +189,28 @@ export function CinesPage() {
         open={modalOpen}
         title={editing ? 'Editar cine (PUT)' : 'Nuevo cine (POST)'}
         onClose={closeModal}
-        onSubmit={() => saveMutation.mutate()}
+        onSubmit={handleSubmit}
         isSubmitting={saveMutation.isPending}
+        hasFieldErrors={Object.keys(errors).length > 0}
       >
-        <FormField label="Nombre">
+        <FormField label="Nombre" required error={errors.nombre}>
           <input
             className={inputClass}
             value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            required
+            onChange={(e) => {
+              setNombre(e.target.value)
+              clearError('nombre')
+            }}
           />
         </FormField>
-        <FormField label="Dirección">
+        <FormField label="Dirección" required error={errors.direccion}>
           <input
             className={inputClass}
             value={direccion}
-            onChange={(e) => setDireccion(e.target.value)}
-            required
+            onChange={(e) => {
+              setDireccion(e.target.value)
+              clearError('direccion')
+            }}
           />
         </FormField>
         <FormField label="Películas en cartelera">

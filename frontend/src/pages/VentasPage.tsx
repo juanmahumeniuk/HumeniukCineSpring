@@ -19,16 +19,29 @@ import {
   cinesApi,
   clientesApi,
   funcionesApi,
-  pagosApi,
   ventasApi,
 } from '../api/client'
 import { useMutationFeedback } from '../hooks/useMutationFeedback'
+import { useFormErrors } from '../hooks/useFormErrors'
+import {
+  compose,
+  dateTime,
+  max as maxValue,
+  nonEmptyArray,
+  notInFutureYears,
+  oneOf,
+  positive,
+  required,
+} from '../lib/validation'
 import { formatCurrency, formatDateTime } from '../utils'
-import type { Venta } from '../types'
+import type { TipoPago, Venta } from '../types'
+
+const TIPOS_PAGO: TipoPago[] = ['TARJETA', 'EFECTIVO']
 
 export function VentasPage() {
   const feedback = useMutationFeedback()
   const viewById = useViewById()
+  const { errors, validate, clearError, reset: resetErrors } = useFormErrors()
   const { selectedCine } = useCineContext()
   const { data: ventas = [], isLoading } = useQuery({
     queryKey: ['ventas'],
@@ -36,7 +49,6 @@ export function VentasPage() {
   })
   const cinesQ = useQuery({ queryKey: ['cines'], queryFn: cinesApi.getAll })
   const clientesQ = useQuery({ queryKey: ['clientes'], queryFn: clientesApi.getAll })
-  const pagosQ = useQuery({ queryKey: ['pagos'], queryFn: pagosApi.getAll })
   const funcionesQ = useQuery({ queryKey: ['funciones'], queryFn: funcionesApi.getAll })
 
   const filtered = selectedCine
@@ -48,25 +60,80 @@ export function VentasPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 16))
   const [cineId, setCineId] = useState<number | ''>('')
-  const [pagoId, setPagoId] = useState<number | ''>('')
+  const [pagoMonto, setPagoMonto] = useState<number | ''>('')
+  const [pagoTipo, setPagoTipo] = useState<TipoPago>('EFECTIVO')
   const [clienteId, setClienteId] = useState<number | ''>('')
   const [funcionIds, setFuncionIds] = useState<number[]>([])
 
+  function closeModal() {
+    setModalOpen(false)
+    resetErrors()
+  }
+
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // El Pago es 1-1 con la Venta y JPA tiene cascade=ALL, por lo que
+      // creamos/actualizamos el Pago de forma anidada dentro del body de Venta.
+      // En edición preservamos el id del pago para que se actualice en lugar
+      // de crearse uno nuevo (y dejar huérfano al anterior).
+      const pagoBody: { id?: number; monto: number; tipo: TipoPago } = {
+        monto: Number(pagoMonto),
+        tipo: pagoTipo,
+      }
+      if (editing?.pago?.id != null) pagoBody.id = editing.pago.id
+
       const body = {
         fecha: new Date(fecha).toISOString(),
         cine: cineId ? { id: Number(cineId) } : undefined,
-        pago: pagoId ? { id: Number(pagoId) } : undefined,
+        pago: pagoBody,
         clientes: clienteId ? [{ id: Number(clienteId) }] : [],
         funciones: funcionIds.map((id) => ({ id })),
       }
       if (editing?.id) return ventasApi.update(editing.id, body)
       return ventasApi.create(body)
     },
-    onSuccess: feedback.onSaveSuccess(['ventas'], 'Venta', !!editing, () => setModalOpen(false)),
+    onSuccess: feedback.onSaveSuccess(
+      [['ventas'], ['pagos']],
+      'Venta',
+      !!editing,
+      closeModal,
+    ),
     onError: feedback.onSaveError('Venta', !!editing),
   })
+
+  function handleSubmit() {
+    const ok = validate(
+      {
+        fecha,
+        cine: cineId,
+        pagoMonto,
+        pagoTipo,
+        cliente: clienteId,
+        funciones: funcionIds,
+      },
+      {
+        fecha: compose(
+          required('La fecha'),
+          dateTime('La fecha'),
+          notInFutureYears(1, 'La fecha'),
+        ),
+        cine: required('El cine'),
+        pagoMonto: compose(
+          required('El monto del pago'),
+          positive('El monto del pago'),
+          maxValue(10_000_000, 'El monto del pago'),
+        ),
+        pagoTipo: compose(
+          required('El método de pago'),
+          oneOf(TIPOS_PAGO, 'El método de pago'),
+        ),
+        cliente: required('El cliente'),
+        funciones: nonEmptyArray('Las funciones'),
+      },
+    )
+    if (!ok) return
+    saveMutation.mutate()
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => ventasApi.remove(id),
@@ -121,9 +188,11 @@ export function VentasPage() {
     setEditing(null)
     setFecha(new Date().toISOString().slice(0, 16))
     setCineId(selectedCine?.id ?? '')
-    setPagoId('')
+    setPagoMonto('')
+    setPagoTipo('EFECTIVO')
     setClienteId('')
     setFuncionIds([])
+    resetErrors()
     setModalOpen(true)
   }
 
@@ -131,10 +200,19 @@ export function VentasPage() {
     setEditing(v)
     setFecha(v.fecha?.slice(0, 16) ?? '')
     setCineId(v.cine?.id ?? '')
-    setPagoId(v.pago?.id ?? '')
+    setPagoMonto(v.pago?.monto ?? '')
+    setPagoTipo(v.pago?.tipo ?? 'EFECTIVO')
     setClienteId(v.clientes?.[0]?.id ?? '')
     setFuncionIds((v.funciones ?? []).map((f) => f.id!).filter(Boolean))
+    resetErrors()
     setModalOpen(true)
+  }
+
+  function funcionLabel(f: { id?: number; horario?: string; pelicula?: { titulo?: string }; sala?: { numero?: number } }): string {
+    const titulo = f.pelicula?.titulo ?? 'Sin película'
+    const sala = f.sala?.numero != null ? `Sala ${f.sala.numero}` : 'Sin sala'
+    const horario = f.horario ? formatDateTime(f.horario) : 'Sin horario'
+    return `${titulo} — ${sala} — ${horario}`
   }
 
   return (
@@ -179,23 +257,30 @@ export function VentasPage() {
       <EntityModal
         open={modalOpen}
         title={editing ? 'Editar venta (PUT)' : 'Nueva venta (POST)'}
-        onClose={() => setModalOpen(false)}
-        onSubmit={() => saveMutation.mutate()}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
         isSubmitting={saveMutation.isPending}
+        hasFieldErrors={Object.keys(errors).length > 0}
       >
-        <FormField label="Fecha y hora">
+        <FormField label="Fecha y hora" required error={errors.fecha}>
           <input
             type="datetime-local"
             className={inputClass}
             value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
+            onChange={(e) => {
+              setFecha(e.target.value)
+              clearError('fecha')
+            }}
           />
         </FormField>
-        <FormField label="Cine">
+        <FormField label="Cine" required error={errors.cine}>
           <select
             className={inputClass}
             value={cineId}
-            onChange={(e) => setCineId(e.target.value ? Number(e.target.value) : '')}
+            onChange={(e) => {
+              setCineId(e.target.value ? Number(e.target.value) : '')
+              clearError('cine')
+            }}
           >
             <option value="">Seleccionar</option>
             {(cinesQ.data ?? []).map((c) => (
@@ -205,27 +290,51 @@ export function VentasPage() {
             ))}
           </select>
         </FormField>
-        <FormField label="Pago">
-          <select
-            className={inputClass}
-            value={pagoId}
-            onChange={(e) => setPagoId(e.target.value ? Number(e.target.value) : '')}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <FormField
+            label="Monto del pago"
+            required
+            error={errors.pagoMonto}
+            hint="Total a cobrar por la venta."
           >
-            <option value="">Seleccionar</option>
-            {(pagosQ.data ?? []).map((p) => (
-              <option key={p.id} value={p.id}>
-                {formatCurrency(p.monto)} — {p.tipo}
-              </option>
-            ))}
-          </select>
-        </FormField>
-        <FormField label="Cliente">
+            <input
+              type="number"
+              min={0}
+              step={0.01}
+              className={inputClass}
+              value={pagoMonto === '' ? '' : pagoMonto}
+              onChange={(e) => {
+                setPagoMonto(e.target.value ? Number(e.target.value) : '')
+                clearError('pagoMonto')
+              }}
+              placeholder="0"
+            />
+          </FormField>
+          <FormField label="Método de pago" required error={errors.pagoTipo}>
+            <select
+              className={inputClass}
+              value={pagoTipo}
+              onChange={(e) => {
+                setPagoTipo(e.target.value as TipoPago)
+                clearError('pagoTipo')
+              }}
+            >
+              {TIPOS_PAGO.map((t) => (
+                <option key={t} value={t}>
+                  {t === 'TARJETA' ? 'Tarjeta' : 'Efectivo'}
+                </option>
+              ))}
+            </select>
+          </FormField>
+        </div>
+        <FormField label="Cliente" required error={errors.cliente}>
           <select
             className={inputClass}
             value={clienteId}
-            onChange={(e) =>
+            onChange={(e) => {
               setClienteId(e.target.value ? Number(e.target.value) : '')
-            }
+              clearError('cliente')
+            }}
           >
             <option value="">Seleccionar</option>
             {(clientesQ.data ?? []).map((c) => (
@@ -235,14 +344,22 @@ export function VentasPage() {
             ))}
           </select>
         </FormField>
-        <FormField label="Funciones">
+        <FormField
+          label="Funciones"
+          required
+          error={errors.funciones}
+          hint="Seleccioná al menos una función (Ctrl+clic para elegir varias)."
+        >
           <MultiSelect
             options={(funcionesQ.data ?? []).map((f) => ({
               id: f.id!,
-              label: `#${f.id} ${f.horario ?? ''}`,
+              label: funcionLabel(f),
             }))}
             value={funcionIds}
-            onChange={setFuncionIds}
+            onChange={(ids) => {
+              setFuncionIds(ids)
+              clearError('funciones')
+            }}
           />
         </FormField>
       </EntityModal>

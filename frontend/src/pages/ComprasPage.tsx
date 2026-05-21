@@ -22,12 +22,21 @@ import {
   proveedoresApi,
 } from '../api/client'
 import { useMutationFeedback } from '../hooks/useMutationFeedback'
+import { useFormErrors } from '../hooks/useFormErrors'
+import {
+  compose,
+  dateTime,
+  nonEmptyArray,
+  notInFutureYears,
+  required,
+} from '../lib/validation'
 import { formatCurrency, formatDateTime } from '../utils'
 import type { Compra } from '../types'
 
 export function ComprasPage() {
   const feedback = useMutationFeedback()
   const viewById = useViewById()
+  const { errors, validate, clearError, reset: resetErrors } = useFormErrors()
   const { selectedCine } = useCineContext()
   const { data: compras = [], isLoading } = useQuery({
     queryKey: ['compras'],
@@ -48,6 +57,11 @@ export function ComprasPage() {
   const [insumoIds, setInsumoIds] = useState<number[]>([])
   const [proveedorIds, setProveedorIds] = useState<number[]>([])
 
+  function closeModal() {
+    setModalOpen(false)
+    resetErrors()
+  }
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const body = {
@@ -59,9 +73,32 @@ export function ComprasPage() {
       if (editing?.id) return comprasApi.update(editing.id, body)
       return comprasApi.create(body)
     },
-    onSuccess: feedback.onSaveSuccess(['compras'], 'Compra', !!editing, () => setModalOpen(false)),
+    onSuccess: feedback.onSaveSuccess(['compras'], 'Compra', !!editing, closeModal),
     onError: feedback.onSaveError('Compra', !!editing),
   })
+
+  function handleSubmit() {
+    const ok = validate(
+      {
+        fecha,
+        cine: cineId,
+        insumos: insumoIds,
+        proveedores: proveedorIds,
+      },
+      {
+        fecha: compose(
+          required('La fecha'),
+          dateTime('La fecha'),
+          notInFutureYears(1, 'La fecha'),
+        ),
+        cine: required('El cine'),
+        insumos: nonEmptyArray('Los insumos'),
+        proveedores: nonEmptyArray('Los proveedores'),
+      },
+    )
+    if (!ok) return
+    saveMutation.mutate()
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => comprasApi.remove(id),
@@ -104,6 +141,7 @@ export function ComprasPage() {
     setCineId(selectedCine?.id ?? '')
     setInsumoIds([])
     setProveedorIds([])
+    resetErrors()
     setModalOpen(true)
   }
 
@@ -113,6 +151,7 @@ export function ComprasPage() {
     setCineId(c.cine?.id ?? '')
     setInsumoIds((c.insumos ?? []).map((i) => i.id!).filter(Boolean))
     setProveedorIds((c.proveedores ?? []).map((p) => p.id!).filter(Boolean))
+    resetErrors()
     setModalOpen(true)
   }
 
@@ -158,23 +197,30 @@ export function ComprasPage() {
       <EntityModal
         open={modalOpen}
         title={editing ? 'Editar compra (PUT)' : 'Nueva compra (POST)'}
-        onClose={() => setModalOpen(false)}
-        onSubmit={() => saveMutation.mutate()}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
         isSubmitting={saveMutation.isPending}
+        hasFieldErrors={Object.keys(errors).length > 0}
       >
-        <FormField label="Fecha y hora">
+        <FormField label="Fecha y hora" required error={errors.fecha}>
           <input
             type="datetime-local"
             className={inputClass}
             value={fecha}
-            onChange={(e) => setFecha(e.target.value)}
+            onChange={(e) => {
+              setFecha(e.target.value)
+              clearError('fecha')
+            }}
           />
         </FormField>
-        <FormField label="Cine">
+        <FormField label="Cine" required error={errors.cine}>
           <select
             className={inputClass}
             value={cineId}
-            onChange={(e) => setCineId(e.target.value ? Number(e.target.value) : '')}
+            onChange={(e) => {
+              setCineId(e.target.value ? Number(e.target.value) : '')
+              clearError('cine')
+            }}
           >
             <option value="">Seleccionar</option>
             {(cinesQ.data ?? []).map((c) => (
@@ -184,24 +230,40 @@ export function ComprasPage() {
             ))}
           </select>
         </FormField>
-        <FormField label="Insumos (Ctrl+clic para varios)">
+        <FormField
+          label="Insumos"
+          required
+          error={errors.insumos}
+          hint="Seleccioná al menos un insumo (Ctrl+clic para varios)."
+        >
           <MultiSelect
             options={(insumosQ.data ?? []).map((i) => ({
               id: i.id!,
               label: `${i.nombre} — ${formatCurrency(i.precio)}`,
             }))}
             value={insumoIds}
-            onChange={setInsumoIds}
+            onChange={(ids) => {
+              setInsumoIds(ids)
+              clearError('insumos')
+            }}
           />
         </FormField>
-        <FormField label="Proveedores">
+        <FormField
+          label="Proveedores"
+          required
+          error={errors.proveedores}
+          hint="Seleccioná al menos un proveedor."
+        >
           <MultiSelect
             options={(proveedoresQ.data ?? []).map((p) => ({
               id: p.id!,
               label: p.nombre,
             }))}
             value={proveedorIds}
-            onChange={setProveedorIds}
+            onChange={(ids) => {
+              setProveedorIds(ids)
+              clearError('proveedores')
+            }}
           />
         </FormField>
       </EntityModal>

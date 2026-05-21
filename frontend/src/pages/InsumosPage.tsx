@@ -15,12 +15,22 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { useViewById } from '../hooks/useViewById'
 import { insumosApi } from '../api/client'
 import { useMutationFeedback } from '../hooks/useMutationFeedback'
+import { useFormErrors } from '../hooks/useFormErrors'
+import {
+  compose,
+  max as maxValue,
+  maxLength,
+  minLength,
+  positive,
+  required,
+} from '../lib/validation'
 import { formatCurrency } from '../utils'
 import type { Insumo } from '../types'
 
 export function InsumosPage() {
   const feedback = useMutationFeedback()
   const viewById = useViewById()
+  const { errors, validate, clearError, reset: resetErrors } = useFormErrors()
   const { data: insumos = [], isLoading } = useQuery({
     queryKey: ['insumos'],
     queryFn: insumosApi.getAll,
@@ -32,15 +42,40 @@ export function InsumosPage() {
   const [nombre, setNombre] = useState('')
   const [precio, setPrecio] = useState(0)
 
+  function closeModal() {
+    setModalOpen(false)
+    resetErrors()
+  }
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const body = { nombre, precio }
       if (editing?.id) return insumosApi.update(editing.id, body)
       return insumosApi.create(body)
     },
-    onSuccess: feedback.onSaveSuccess(['insumos'], 'Insumo', !!editing, () => setModalOpen(false)),
+    onSuccess: feedback.onSaveSuccess(['insumos'], 'Insumo', !!editing, closeModal),
     onError: feedback.onSaveError('Insumo', !!editing),
   })
+
+  function handleSubmit() {
+    const ok = validate(
+      { nombre, precio },
+      {
+        nombre: compose(
+          required('El nombre'),
+          minLength(2, 'El nombre'),
+          maxLength(80, 'El nombre'),
+        ),
+        precio: compose(
+          required('El precio'),
+          positive('El precio'),
+          maxValue(10_000_000, 'El precio'),
+        ),
+      },
+    )
+    if (!ok) return
+    saveMutation.mutate()
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => insumosApi.remove(id),
@@ -65,6 +100,7 @@ export function InsumosPage() {
               setEditing(null)
               setNombre('')
               setPrecio(0)
+              resetErrors()
               setModalOpen(true)
             }}
           >
@@ -97,6 +133,7 @@ export function InsumosPage() {
                 setEditing(i)
                 setNombre(i.nombre)
                 setPrecio(i.precio)
+                resetErrors()
                 setModalOpen(true)
               }}
               onDelete={() => i.id && setDeleteId(i.id)}
@@ -108,25 +145,32 @@ export function InsumosPage() {
       <EntityModal
         open={modalOpen}
         title={editing ? 'Editar insumo (PUT)' : 'Nuevo insumo (POST)'}
-        onClose={() => setModalOpen(false)}
-        onSubmit={() => saveMutation.mutate()}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
         isSubmitting={saveMutation.isPending}
+        hasFieldErrors={Object.keys(errors).length > 0}
       >
-        <FormField label="Nombre">
+        <FormField label="Nombre" required error={errors.nombre}>
           <input
             className={inputClass}
             value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            required
+            onChange={(e) => {
+              setNombre(e.target.value)
+              clearError('nombre')
+            }}
           />
         </FormField>
-        <FormField label="Precio">
+        <FormField label="Precio" required error={errors.precio}>
           <input
             type="number"
+            min={0}
+            step={0.01}
             className={inputClass}
             value={precio || ''}
-            onChange={(e) => setPrecio(Number(e.target.value))}
-            required
+            onChange={(e) => {
+              setPrecio(Number(e.target.value))
+              clearError('precio')
+            }}
           />
         </FormField>
       </EntityModal>

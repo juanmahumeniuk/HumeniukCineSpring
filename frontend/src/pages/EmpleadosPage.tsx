@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
 import { PageHeader } from '../components/layout/PageHeader'
@@ -13,33 +13,89 @@ import { ApiTestPanel } from '../components/crud/ApiTestPanel'
 import { RowCrudActions } from '../components/crud/RowCrudActions'
 import { JsonDetailModal } from '../components/crud/JsonDetailModal'
 import { useViewById } from '../hooks/useViewById'
-import { empleadosApi } from '../api/client'
+import { cinesApi, empleadosApi } from '../api/client'
 import { useMutationFeedback } from '../hooks/useMutationFeedback'
+import { useFormErrors } from '../hooks/useFormErrors'
+import {
+  compose,
+  digitsBetween,
+  integer,
+  maxLength,
+  minLength,
+  positive,
+  required,
+} from '../lib/validation'
 import type { Empleado } from '../types'
 
 export function EmpleadosPage() {
   const feedback = useMutationFeedback()
   const viewById = useViewById()
+  const { errors, validate, clearError, reset: resetErrors } = useFormErrors()
   const { data: empleados = [], isLoading } = useQuery({
     queryKey: ['empleados'],
     queryFn: empleadosApi.getAll,
   })
+  const { data: cines = [] } = useQuery({
+    queryKey: ['cines'],
+    queryFn: cinesApi.getAll,
+  })
+
+  // /api/empleados oculta `cines` (@JsonIgnore). Reconstruimos la relación
+  // desde el lado de Cine, que sí expone su lista de empleados.
+  const cinesPorEmpleado = useMemo(() => {
+    const map = new Map<number, string[]>()
+    for (const cine of cines) {
+      for (const emp of cine.empleados ?? []) {
+        if (emp.id == null) continue
+        const arr = map.get(emp.id) ?? []
+        arr.push(cine.nombre)
+        map.set(emp.id, arr)
+      }
+    }
+    return map
+  }, [cines])
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Empleado | null>(null)
   const [deleteId, setDeleteId] = useState<number | null>(null)
   const [nombre, setNombre] = useState('')
-  const [dni, setDni] = useState(0)
+  const [dni, setDni] = useState('')
+
+  function closeModal() {
+    setModalOpen(false)
+    resetErrors()
+  }
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const body = { nombre, dni }
+      const body = { nombre, dni: Number(dni) }
       if (editing?.id) return empleadosApi.update(editing.id, body)
       return empleadosApi.create(body)
     },
-    onSuccess: feedback.onSaveSuccess(['empleados'], 'Empleado', !!editing, () => setModalOpen(false)),
+    onSuccess: feedback.onSaveSuccess(['empleados'], 'Empleado', !!editing, closeModal),
     onError: feedback.onSaveError('Empleado', !!editing),
   })
+
+  function handleSubmit() {
+    const ok = validate(
+      { nombre, dni },
+      {
+        nombre: compose(
+          required('El nombre'),
+          minLength(2, 'El nombre'),
+          maxLength(80, 'El nombre'),
+        ),
+        dni: compose(
+          required('El DNI'),
+          integer('El DNI'),
+          positive('El DNI'),
+          digitsBetween(7, 9, 'El DNI'),
+        ),
+      },
+    )
+    if (!ok) return
+    saveMutation.mutate()
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => empleadosApi.remove(id),
@@ -53,7 +109,19 @@ export function EmpleadosPage() {
     {
       key: 'cines',
       header: 'Cines',
-      render: () => '—',
+      render: (e) => {
+        const nombres = e.id ? (cinesPorEmpleado.get(e.id) ?? []) : []
+        if (nombres.length === 0) return <span className="text-text-muted">—</span>
+        return (
+          <div className="flex flex-wrap gap-1">
+            {nombres.map((n) => (
+              <span key={n} className="glass-badge text-white/90">
+                {n}
+              </span>
+            ))}
+          </div>
+        )
+      },
     },
   ]
 
@@ -67,7 +135,8 @@ export function EmpleadosPage() {
             onClick={() => {
               setEditing(null)
               setNombre('')
-              setDni(0)
+              setDni('')
+              resetErrors()
               setModalOpen(true)
             }}
           >
@@ -99,7 +168,8 @@ export function EmpleadosPage() {
               onEdit={() => {
                 setEditing(e)
                 setNombre(e.nombre)
-                setDni(e.dni)
+                setDni(String(e.dni))
+                resetErrors()
                 setModalOpen(true)
               }}
               onDelete={() => e.id && setDeleteId(e.id)}
@@ -111,25 +181,35 @@ export function EmpleadosPage() {
       <EntityModal
         open={modalOpen}
         title={editing ? 'Editar empleado' : 'Nuevo empleado'}
-        onClose={() => setModalOpen(false)}
-        onSubmit={() => saveMutation.mutate()}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
         isSubmitting={saveMutation.isPending}
+        hasFieldErrors={Object.keys(errors).length > 0}
       >
-        <FormField label="Nombre">
+        <FormField label="Nombre" required error={errors.nombre}>
           <input
             className={inputClass}
             value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            required
+            onChange={(e) => {
+              setNombre(e.target.value)
+              clearError('nombre')
+            }}
           />
         </FormField>
-        <FormField label="DNI">
+        <FormField
+          label="DNI"
+          required
+          error={errors.dni}
+          hint="Sólo dígitos, entre 7 y 9 caracteres."
+        >
           <input
             type="number"
             className={inputClass}
-            value={dni || ''}
-            onChange={(e) => setDni(Number(e.target.value))}
-            required
+            value={dni}
+            onChange={(e) => {
+              setDni(e.target.value)
+              clearError('dni')
+            }}
           />
         </FormField>
       </EntityModal>

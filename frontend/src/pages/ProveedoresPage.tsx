@@ -15,11 +15,20 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { useViewById } from '../hooks/useViewById'
 import { proveedoresApi } from '../api/client'
 import { useMutationFeedback } from '../hooks/useMutationFeedback'
+import { useFormErrors } from '../hooks/useFormErrors'
+import {
+  compose,
+  maxLength,
+  minLength,
+  phone,
+  required,
+} from '../lib/validation'
 import type { Proveedor } from '../types'
 
 export function ProveedoresPage() {
   const feedback = useMutationFeedback()
   const viewById = useViewById()
+  const { errors, validate, clearError, reset: resetErrors } = useFormErrors()
   const { data: proveedores = [], isLoading } = useQuery({
     queryKey: ['proveedores'],
     queryFn: proveedoresApi.getAll,
@@ -32,15 +41,44 @@ export function ProveedoresPage() {
   const [telefono, setTelefono] = useState('')
   const [direccion, setDireccion] = useState('')
 
+  function closeModal() {
+    setModalOpen(false)
+    resetErrors()
+  }
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const body = { nombre, telefono, direccion }
       if (editing?.id) return proveedoresApi.update(editing.id, body)
       return proveedoresApi.create(body)
     },
-    onSuccess: feedback.onSaveSuccess(['proveedores'], 'Proveedor', !!editing, () => setModalOpen(false)),
+    onSuccess: feedback.onSaveSuccess(['proveedores'], 'Proveedor', !!editing, closeModal),
     onError: feedback.onSaveError('Proveedor', !!editing),
   })
+
+  function handleSubmit() {
+    const ok = validate(
+      { nombre, telefono, direccion },
+      {
+        nombre: compose(
+          required('El nombre'),
+          minLength(2, 'El nombre'),
+          maxLength(80, 'El nombre'),
+        ),
+        telefono: compose(
+          required('El teléfono'),
+          phone('El teléfono'),
+        ),
+        direccion: compose(
+          required('La dirección'),
+          minLength(4, 'La dirección'),
+          maxLength(120, 'La dirección'),
+        ),
+      },
+    )
+    if (!ok) return
+    saveMutation.mutate()
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => proveedoresApi.remove(id),
@@ -67,6 +105,7 @@ export function ProveedoresPage() {
               setNombre('')
               setTelefono('')
               setDireccion('')
+              resetErrors()
               setModalOpen(true)
             }}
           >
@@ -100,6 +139,7 @@ export function ProveedoresPage() {
                 setNombre(p.nombre)
                 setTelefono(p.telefono)
                 setDireccion(p.direccion)
+                resetErrors()
                 setModalOpen(true)
               }}
               onDelete={() => p.id && setDeleteId(p.id)}
@@ -111,32 +151,45 @@ export function ProveedoresPage() {
       <EntityModal
         open={modalOpen}
         title={editing ? 'Editar proveedor (PUT)' : 'Nuevo proveedor (POST)'}
-        onClose={() => setModalOpen(false)}
-        onSubmit={() => saveMutation.mutate()}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
         isSubmitting={saveMutation.isPending}
+        hasFieldErrors={Object.keys(errors).length > 0}
       >
-        <FormField label="Nombre">
+        <FormField label="Nombre" required error={errors.nombre}>
           <input
             className={inputClass}
             value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            required
+            onChange={(e) => {
+              setNombre(e.target.value)
+              clearError('nombre')
+            }}
           />
         </FormField>
-        <FormField label="Teléfono">
+        <FormField
+          label="Teléfono"
+          required
+          error={errors.telefono}
+          hint="Puede incluir +, dígitos, espacios, guiones y paréntesis."
+        >
           <input
             className={inputClass}
             value={telefono}
-            onChange={(e) => setTelefono(e.target.value)}
-            required
+            onChange={(e) => {
+              setTelefono(e.target.value)
+              clearError('telefono')
+            }}
+            placeholder="+54 11 5555-5555"
           />
         </FormField>
-        <FormField label="Dirección">
+        <FormField label="Dirección" required error={errors.direccion}>
           <input
             className={inputClass}
             value={direccion}
-            onChange={(e) => setDireccion(e.target.value)}
-            required
+            onChange={(e) => {
+              setDireccion(e.target.value)
+              clearError('direccion')
+            }}
           />
         </FormField>
       </EntityModal>

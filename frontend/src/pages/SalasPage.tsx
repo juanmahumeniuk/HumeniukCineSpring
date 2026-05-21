@@ -22,6 +22,15 @@ import {
   salasVipApi,
 } from '../api/client'
 import { useMutationFeedback } from '../hooks/useMutationFeedback'
+import { useFormErrors } from '../hooks/useFormErrors'
+import {
+  between,
+  compose,
+  integer,
+  maxLength,
+  minLength,
+  required,
+} from '../lib/validation'
 import { mergeSalas } from '../utils'
 import { joinFuncionesWithRefs } from '../utils/funciones'
 import type { SalaMerged } from '../types'
@@ -29,6 +38,7 @@ import type { SalaMerged } from '../types'
 export function SalasPage() {
   const feedback = useMutationFeedback()
   const viewById = useViewById()
+  const { errors, validate, clearError, reset: resetErrors } = useFormErrors()
   const { selectedCine } = useCineContext()
   const salasQ = useQuery({ queryKey: ['salas'], queryFn: salasApi.getAll })
   const vipQ = useQuery({ queryKey: ['salas-vip'], queryFn: salasVipApi.getAll })
@@ -76,6 +86,11 @@ export function SalasPage() {
   const [cineId, setCineId] = useState<number | ''>('')
   const cinesQ = useQuery({ queryKey: ['cines'], queryFn: cinesApi.getAll })
 
+  function closeModal() {
+    setModalOpen(false)
+    resetErrors()
+  }
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const cine = cineId ? { id: Number(cineId) } : selectedCine ? { id: selectedCine.id } : undefined
@@ -92,10 +107,42 @@ export function SalasPage() {
       [['salas'], ['salas-vip']],
       isVip ? 'Sala VIP' : 'Sala',
       !!editing,
-      () => setModalOpen(false),
+      closeModal,
     ),
     onError: feedback.onSaveError(isVip ? 'Sala VIP' : 'Sala', !!editing),
   })
+
+  function handleSubmit() {
+    const cineSeleccionado = cineId || selectedCine?.id
+    const ok = validate(
+      {
+        numero,
+        capacidad,
+        cine: cineSeleccionado ?? '',
+        beneficios,
+      },
+      {
+        numero: compose(
+          integer('El número de sala'),
+          between(1, 999, 'El número de sala'),
+        ),
+        capacidad: compose(
+          integer('La capacidad'),
+          between(1, 1000, 'La capacidad'),
+        ),
+        cine: required('El cine'),
+        beneficios: isVip
+          ? compose(
+              required('Los beneficios VIP'),
+              minLength(2, 'Los beneficios VIP'),
+              maxLength(200, 'Los beneficios VIP'),
+            )
+          : undefined,
+      },
+    )
+    if (!ok) return
+    saveMutation.mutate()
+  }
 
   const deleteMutation = useMutation({
     mutationFn: ({ id, vip }: { id: number; vip: boolean }) =>
@@ -201,6 +248,7 @@ export function SalasPage() {
               setCapacidad(100)
               setBeneficios('')
               setCineId(selectedCine?.id ?? '')
+              resetErrors()
               setModalOpen(true)
             }}
           >
@@ -262,6 +310,7 @@ export function SalasPage() {
                   setNumero(s.numero)
                   setCapacidad(s.capacidad)
                   setBeneficios(s.beneficios ?? '')
+                  resetErrors()
                   setModalOpen(true)
                 }}
               >
@@ -282,26 +331,33 @@ export function SalasPage() {
       <EntityModal
         open={modalOpen}
         title={editing ? 'Editar sala' : 'Nueva sala'}
-        onClose={() => setModalOpen(false)}
-        onSubmit={() => saveMutation.mutate()}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
         isSubmitting={saveMutation.isPending}
+        hasFieldErrors={Object.keys(errors).length > 0}
       >
         <FormField label="Tipo">
           <select
             className={inputClass}
             value={isVip ? 'vip' : 'normal'}
-            onChange={(e) => setIsVip(e.target.value === 'vip')}
+            onChange={(e) => {
+              setIsVip(e.target.value === 'vip')
+              clearError('beneficios')
+            }}
             disabled={!!editing}
           >
             <option value="normal">Normal</option>
             <option value="vip">VIP</option>
           </select>
         </FormField>
-        <FormField label="Cine">
+        <FormField label="Cine" required error={errors.cine}>
           <select
             className={inputClass}
             value={cineId}
-            onChange={(e) => setCineId(e.target.value ? Number(e.target.value) : '')}
+            onChange={(e) => {
+              setCineId(e.target.value ? Number(e.target.value) : '')
+              clearError('cine')
+            }}
           >
             <option value="">Seleccionar</option>
             {(cinesQ.data ?? []).map((c) => (
@@ -311,28 +367,51 @@ export function SalasPage() {
             ))}
           </select>
         </FormField>
-        <FormField label="Número">
+        <FormField
+          label="Número"
+          required
+          error={errors.numero}
+          hint="Entero entre 1 y 999."
+        >
           <input
             type="number"
+            min={1}
+            max={999}
             className={inputClass}
             value={numero}
-            onChange={(e) => setNumero(Number(e.target.value))}
+            onChange={(e) => {
+              setNumero(Number(e.target.value))
+              clearError('numero')
+            }}
           />
         </FormField>
-        <FormField label="Capacidad">
+        <FormField
+          label="Capacidad"
+          required
+          error={errors.capacidad}
+          hint="Entero entre 1 y 1000."
+        >
           <input
             type="number"
+            min={1}
+            max={1000}
             className={inputClass}
             value={capacidad}
-            onChange={(e) => setCapacidad(Number(e.target.value))}
+            onChange={(e) => {
+              setCapacidad(Number(e.target.value))
+              clearError('capacidad')
+            }}
           />
         </FormField>
         {isVip && (
-          <FormField label="Beneficios VIP">
+          <FormField label="Beneficios VIP" required error={errors.beneficios}>
             <input
               className={inputClass}
               value={beneficios}
-              onChange={(e) => setBeneficios(e.target.value)}
+              onChange={(e) => {
+                setBeneficios(e.target.value)
+                clearError('beneficios')
+              }}
             />
           </FormField>
         )}

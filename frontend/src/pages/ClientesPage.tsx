@@ -15,6 +15,15 @@ import { JsonDetailModal } from '../components/crud/JsonDetailModal'
 import { useViewById } from '../hooks/useViewById'
 import { clientesApi, clientesVipApi } from '../api/client'
 import { useMutationFeedback } from '../hooks/useMutationFeedback'
+import { useFormErrors } from '../hooks/useFormErrors'
+import {
+  between,
+  compose,
+  email as emailValidator,
+  maxLength,
+  minLength,
+  required,
+} from '../lib/validation'
 import type { Cliente, ClienteVIP } from '../types'
 
 type Tab = 'regular' | 'vip'
@@ -22,6 +31,7 @@ type Tab = 'regular' | 'vip'
 export function ClientesPage() {
   const feedback = useMutationFeedback()
   const viewById = useViewById()
+  const { errors, validate, clearError, reset: resetErrors } = useFormErrors()
   const [tab, setTab] = useState<Tab>('regular')
   const clientesQ = useQuery({ queryKey: ['clientes'], queryFn: clientesApi.getAll })
   const vipQ = useQuery({ queryKey: ['clientes-vip'], queryFn: clientesVipApi.getAll })
@@ -36,6 +46,11 @@ export function ClientesPage() {
   const isVip = tab === 'vip'
   const data = isVip ? (vipQ.data ?? []) : (clientesQ.data ?? [])
   const isLoading = isVip ? vipQ.isLoading : clientesQ.isLoading
+
+  function closeModal() {
+    setModalOpen(false)
+    resetErrors()
+  }
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -52,10 +67,29 @@ export function ClientesPage() {
       [['clientes'], ['clientes-vip']],
       isVip ? 'Cliente VIP' : 'Cliente',
       !!editing,
-      () => setModalOpen(false),
+      closeModal,
     ),
     onError: feedback.onSaveError(isVip ? 'Cliente VIP' : 'Cliente', !!editing),
   })
+
+  function handleSubmit() {
+    const ok = validate(
+      { nombre, email, descuento },
+      {
+        nombre: compose(
+          required('El nombre'),
+          minLength(2, 'El nombre'),
+          maxLength(80, 'El nombre'),
+        ),
+        email: compose(required('El email'), emailValidator('El email')),
+        descuento: isVip
+          ? between(0, 100, 'El descuento')
+          : undefined,
+      },
+    )
+    if (!ok) return
+    saveMutation.mutate()
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) =>
@@ -95,6 +129,7 @@ export function ClientesPage() {
               setNombre('')
               setEmail('')
               setDescuento(10)
+              resetErrors()
               setModalOpen(true)
             }}
           >
@@ -156,6 +191,7 @@ export function ClientesPage() {
                 setNombre(c.nombre)
                 setEmail(c.email)
                 if ('descuento' in c) setDescuento((c as ClienteVIP).descuento)
+                resetErrors()
                 setModalOpen(true)
               }}
               onDelete={() => c.id && setDeleteId(c.id)}
@@ -167,34 +203,48 @@ export function ClientesPage() {
       <EntityModal
         open={modalOpen}
         title={editing ? 'Editar cliente' : 'Nuevo cliente'}
-        onClose={() => setModalOpen(false)}
-        onSubmit={() => saveMutation.mutate()}
+        onClose={closeModal}
+        onSubmit={handleSubmit}
         isSubmitting={saveMutation.isPending}
+        hasFieldErrors={Object.keys(errors).length > 0}
       >
-        <FormField label="Nombre">
+        <FormField label="Nombre" required error={errors.nombre}>
           <input
             className={inputClass}
             value={nombre}
-            onChange={(e) => setNombre(e.target.value)}
-            required
+            onChange={(e) => {
+              setNombre(e.target.value)
+              clearError('nombre')
+            }}
           />
         </FormField>
-        <FormField label="Email">
+        <FormField label="Email" required error={errors.email}>
           <input
             type="email"
             className={inputClass}
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
+            onChange={(e) => {
+              setEmail(e.target.value)
+              clearError('email')
+            }}
           />
         </FormField>
         {isVip && (
-          <FormField label="Descuento (%)">
+          <FormField
+            label="Descuento (%)"
+            error={errors.descuento}
+            hint="Valor entre 0 y 100."
+          >
             <input
               type="number"
+              min={0}
+              max={100}
               className={inputClass}
               value={descuento}
-              onChange={(e) => setDescuento(Number(e.target.value))}
+              onChange={(e) => {
+                setDescuento(Number(e.target.value))
+                clearError('descuento')
+              }}
             />
           </FormField>
         )}
